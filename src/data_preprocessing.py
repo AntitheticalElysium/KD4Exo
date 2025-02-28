@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import boxcox
 import math
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.model_selection import train_test_split
 
 # Columns retained for estimating exoplanet habitability:
 # 
@@ -35,17 +36,47 @@ from sklearn.preprocessing import StandardScaler
 #    - 'pl_trandep' (Transit Depth [%]): Can hint at atmospheric properties.
 #    - 'pl_orbincl' (Orbital Inclination [degrees]): Useful for detection but not directly linked to habitability.
 
+def compute_habitability_index(df):
+    """
+    Computes a habitability index based on how close each planet's properties are to ideal habitable conditions.
+    The index is continuous, meaning values closer to 1 are more habitable.
+    """
+    # Define optimal values based on Earth's conditions and astrophysical research
+    optimal_values = {
+        'pl_rade': 1.0,      # Earth-like radius
+        'pl_bmasse': 1.0,    # Earth mass
+        'pl_orbsmax': 1.0,   # 1 AU (Habitable zone reference point)
+        'pl_orbper': 365.25, # Earth year
+        'pl_orbeccen': 0.0167, # Earth's eccentricity
+        'st_teff': 5778,     # Sun's effective temperature in Kelvin
+        'st_rad': 1.0,       # Sun's radius
+        'st_lum': 1.0,       # Solar luminosity
+        'st_mass': 1.0,      # Solar mass
+        'st_met': 0.0,       # Solar metallicity (dex)
+        'sy_snum': 1,        # Single star system
+        'sy_pnum': 1,        # No extreme planetary interactions
+        'sy_dist': 10,       # Close enough for good observation (arbitrary, not influencing habitability itself)
+        'pl_dens': 5.51      # Earth's density in g/cm^3
+    }
+    
+    # Normalize the impact of each feature by scaling distances from optimal values
+    scaler = MinMaxScaler()
+    scaled_df = df.copy()
+    
+    for col, opt_value in optimal_values.items():
+        if col in df.columns:
+            scaled_df[col] = 1 - np.abs(df[col] - opt_value) / (df[col].max() - df[col].min())
+    
+    # Compute habitability index as the mean of all feature scores
+    df['habitability_index'] = scaled_df[optimal_values.keys()].mean(axis=1)
+    
+    return df
+
 def preprocess_exoplanet_data(file_path):
     """
     Loads and preprocesses the exoplanet dataset.
-    - Drops columns with more than 25% missing values.
-    - Fills remaining missing values with the median.
-    
-    Args:
-        file_path (str): Path to the CSV file.
-    
-    Returns:
-        pd.DataFrame: Cleaned dataset.
+    Drops columns with more than 25% missing values.
+    Fills remaining missing values with the median.
     """
     # Load the dataset
     df = pd.read_csv(file_path)
@@ -71,6 +102,8 @@ def preprocess_exoplanet_data(file_path):
     df[num_features] = df[num_features].fillna(df[num_features].median())
     
     #print(df.isnull().sum())
+
+    df = compute_habitability_index(df)
     
     return df
 
@@ -91,6 +124,12 @@ def plot_feature_distributions(df):
 
     plt.tight_layout()
     plt.show()
+
+#def handle_correlated_features(df, threshold=0.9):
+    #plt.figure(figsize=(12, 8))
+    #sns.heatmap(df.corr(), annot=True, cmap="coolwarm", fmt=".2f")
+    #plt.title("Feature Correlation Heatmap")
+    #plt.show()
 
 def handle_skewness(df):
     exclude_cols = {'sy_snum', 'sy_pnum', 'pl_orbccen'} # Skewness is natural here
@@ -123,12 +162,19 @@ def handle_scaling(df):
     # Scale every col
     df.loc[:, :] = scaler.fit_transform(df)
 
+def split_data(df):
+    X = df.drop(columns=["target_column"])  # Replace with actual target column
+    y = df["target_column"]
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
 df = preprocess_exoplanet_data("../data/raw/exoplanet_data.csv")
+print(df['habitability_index'].mean())
+#handle_correlated_features(df)
+#handle_outliers(df)
+#handle_skewness(df)
+#handle_scaling(df)
 
-handle_outliers(df)
-handle_skewness(df)
-handle_scaling(df)
+#df.to_csv('../data/processed/exoplanet_data_clean.csv')
 
-df.to_csv('../data/processed/exoplanet_data_clean.csv')
-
-plot_feature_distributions(df)
+#plot_feature_distributions(df)
