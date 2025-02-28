@@ -29,7 +29,6 @@ from sklearn.model_selection import train_test_split
 # 3. System Properties
 #    - 'sy_snum' (Number of Stars in System): Binary or multiple-star systems may have unstable orbits.
 #    - 'sy_pnum' (Number of Planets in System): Can indicate gravitational influences on habitability.
-#    - 'sy_dist' (Distance from Earth [parsecs]): Useful for determining observation feasibility.
 #
 # 4. Additional Properties?
 #    - 'pl_dens' (Planet Density [g/cm^3]): Helps distinguish between rocky and gaseous planets.
@@ -38,38 +37,53 @@ from sklearn.model_selection import train_test_split
 
 def compute_habitability_index(df):
     """
-    Computes a habitability index based on how close each planet's properties are to ideal habitable conditions.
-    The index is continuous, meaning values closer to 1 are more habitable.
+    Computes a habitability index for exoplanets based on proximity to Earth-like conditions.
+    Uses weighted distances and predefined scaling for robustness.
     """
-    # Define optimal values based on Earth's conditions and astrophysical research
     optimal_values = {
-        'pl_rade': 1.0,      # Earth-like radius
-        'pl_bmasse': 1.0,    # Earth mass
-        'pl_orbsmax': 1.0,   # 1 AU (Habitable zone reference point)
-        'pl_orbper': 365.25, # Earth year
-        'pl_orbeccen': 0.0167, # Earth's eccentricity
-        'st_teff': 5778,     # Sun's effective temperature in Kelvin
-        'st_rad': 1.0,       # Sun's radius
-        'st_lum': 1.0,       # Solar luminosity
-        'st_mass': 1.0,      # Solar mass
-        'st_met': 0.0,       # Solar metallicity (dex)
-        'sy_snum': 1,        # Single star system
-        'sy_pnum': 1,        # No extreme planetary interactions
-        'sy_dist': 10,       # Close enough for good observation (arbitrary, not influencing habitability itself)
-        'pl_dens': 5.51      # Earth's density in g/cm^3
+        'pl_rade': (1.0, 0.5, 2.0),      # Earth radius, min-max range
+        'pl_bmasse': (1.0, 0.5, 5.0),    # Earth mass
+        'pl_orbsmax': (1.0, 0.5, 1.5),   # AU
+        'pl_orbper': (365.25, 200, 500), # Orbital period in days
+        'pl_orbeccen': (0.0167, 0, 0.2), # Eccentricity
+        'st_teff': (5778, 4000, 7000),   # Star temperature
+        'st_rad': (1.0, 0.5, 2.0),       # Star radius
+        'st_lum': (1.0, 0.1, 5.0),       # Star luminosity
+        'st_mass': (1.0, 0.5, 2.0),      # Star mass
+        'st_met': (0.0, -1.0, 0.5),      # Metallicity (dex)
+        'sy_snum': (1, 1, 3),            # Single star system preferred
+        'sy_pnum': (1, 1, 5),            # Number of planets in system
+        'pl_dens': (5.51, 3, 10)         # Density
     }
-    
-    # Normalize the impact of each feature by scaling distances from optimal values
-    scaler = MinMaxScaler()
-    scaled_df = df.copy()
-    
-    for col, opt_value in optimal_values.items():
-        if col in df.columns:
-            scaled_df[col] = 1 - np.abs(df[col] - opt_value) / (df[col].max() - df[col].min())
-    
-    # Compute habitability index as the mean of all feature scores
-    df['habitability_index'] = scaled_df[optimal_values.keys()].mean(axis=1)
-    
+
+    weights = {
+        'pl_rade': 1.5,
+        'pl_bmasse': 1.5,
+        'pl_orbsmax': 2.0,
+        'pl_orbper': 1.5,
+        'pl_orbeccen': 1.0,
+        'st_teff': 2.0,
+        'st_rad': 1.5,
+        'st_lum': 2.0,
+        'st_mass': 1.5,
+        'st_met': 0.5,
+        'sy_snum': 1.0,
+        'sy_pnum': 0.8,
+        'pl_dens': 1.5
+    }
+
+    scores = []
+    for feature, (ideal, min_val, max_val) in optimal_values.items():
+        if feature in df:
+            # Normalize using fixed range
+            norm = 1 - np.abs(df[feature] - ideal) / (max_val - min_val)
+            norm = np.clip(norm, 0, 1)  # Ensure it's between 0-1
+            scores.append(norm)# * weights.get(feature, 1))
+
+    # Weighted mean of all feature scores
+    habitability_index = np.sum(scores, axis=0) / sum(weights.values())
+
+    df['habitability_index'] = habitability_index
     return df
 
 def preprocess_exoplanet_data(file_path):
@@ -83,9 +97,9 @@ def preprocess_exoplanet_data(file_path):
     
     # Columns to retain
     retained_columns = [
-        'pl_rade', 'pl_bmasse', 'pl_orbsmax', 'pl_orbper', 'pl_orbeccen',
+        'pl_name', 'pl_rade', 'pl_bmasse', 'pl_orbsmax', 'pl_orbper', 'pl_orbeccen',
         'pl_insol', 'pl_eqt', 'st_spectype', 'st_teff', 'st_rad', 'st_lum',
-        'st_mass', 'st_met', 'sy_snum', 'sy_pnum', 'sy_dist', 'pl_dens', 'pl_trandep', 'pl_orbincl'
+        'st_mass', 'st_met', 'sy_snum', 'sy_pnum', 'pl_dens', 'pl_trandep', 'pl_orbincl'
     ]
     df = df[retained_columns]
     
@@ -98,7 +112,7 @@ def preprocess_exoplanet_data(file_path):
     
     # Fill remaining missing values with median
     num_features = ['pl_rade', 'pl_bmasse', 'pl_orbsmax', 'pl_orbper', 'pl_orbeccen',
-                    'st_teff', 'st_rad', 'st_lum', 'st_mass', 'st_met', 'sy_dist', 'pl_dens']
+                    'st_teff', 'st_rad', 'st_lum', 'st_mass', 'st_met', 'pl_dens']
     df[num_features] = df[num_features].fillna(df[num_features].median())
     
     #print(df.isnull().sum())
@@ -178,3 +192,6 @@ print(df['habitability_index'].mean())
 #df.to_csv('../data/processed/exoplanet_data_clean.csv')
 
 #plot_feature_distributions(df)
+
+df_sorted = df.sort_values(by='habitability_index', ascending=False)
+print(df_sorted[['pl_name', 'habitability_index']])
