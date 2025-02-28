@@ -1,7 +1,7 @@
 import pandas as pd
-
-# Load the raw dataset
-df = pd.read_csv("../data/raw/exoplanet_data.csv")
+import matplotlib.pyplot as plt
+import seaborn as sns
+import math
 
 # Columns retained for estimating exoplanet habitability:
 # 
@@ -32,8 +32,65 @@ df = pd.read_csv("../data/raw/exoplanet_data.csv")
 #    - 'pl_trandep' (Transit Depth [%]): Can hint at atmospheric properties.
 #    - 'pl_orbincl' (Orbital Inclination [degrees]): Useful for detection but not directly linked to habitability.
 
-print(df[["pl_rade", "pl_bmasse", "pl_orbsmax", "pl_orbper", "pl_orbeccen", "pl_insol", "pl_eqt",
-          "st_spectype", "st_teff", "st_rad", "st_lum", "st_mass", "st_met",
-          "sy_snum", "sy_pnum", "sy_dist",
-          "pl_dens", "pl_trandep", "pl_orbincl"]].isnull().sum())
+def preprocess_exoplanet_data(file_path):
+    """
+    Loads and preprocesses the exoplanet dataset.
+    - Drops columns with more than 25% missing values.
+    - Fills remaining missing values with the median.
+    
+    Args:
+        file_path (str): Path to the CSV file.
+    
+    Returns:
+        pd.DataFrame: Cleaned dataset.
+    """
+    # Load the dataset
+    df = pd.read_csv(file_path)
+    
+    # Columns to retain
+    retained_columns = [
+        'pl_rade', 'pl_bmasse', 'pl_orbsmax', 'pl_orbper', 'pl_orbeccen',
+        'pl_insol', 'pl_eqt', 'st_spectype', 'st_teff', 'st_rad', 'st_lum',
+        'st_mass', 'st_met', 'sy_snum', 'sy_pnum', 'sy_dist', 'pl_dens', 'pl_trandep', 'pl_orbincl'
+    ]
+    df = df[retained_columns]
+    
+    # Display missing values count
+    print("Missing values before preprocessing:")
+    print(df.isnull().sum())
+    
+    # Drop columns with more than 25% missing values
+    columns_to_drop = ['st_spectype', 'pl_insol', 'pl_eqt', 'pl_trandep', 'pl_orbincl']
+    df.drop(columns=columns_to_drop, inplace=True)
+    
+    # Fill remaining missing values with median
+    num_features = ['pl_rade', 'pl_bmasse', 'pl_orbsmax', 'pl_orbper', 'pl_orbeccen',
+                    'st_teff', 'st_rad', 'st_lum', 'st_mass', 'st_met', 'sy_dist', 'pl_dens']
+    df[num_features] = df[num_features].fillna(df[num_features].median())
+    
+    # Display missing values after preprocessing
+    print("Missing values after preprocessing:")
+    print(df.isnull().sum())
+    
+    return df
 
+
+def plot_feature_distributions(df):
+    num_features = df.select_dtypes(include=['float64', 'int64']).columns
+    num_features_count = len(num_features)
+
+    # Calculate total plot dimensions
+    rows = math.ceil(num_features_count / 3)
+    cols = min(3, num_features_count)  
+    plt.figure(figsize=(5 * cols, 4 * rows))
+
+    for i, col in enumerate(num_features, 1):
+        plt.subplot(rows, cols, i)
+        sns.histplot(df[col], bins=50, kde=True)
+        plt.title(col)
+
+    plt.tight_layout()
+    plt.show()
+
+df = preprocess_exoplanet_data("../data/raw/exoplanet_data.csv")
+plot_feature_distributions(df)
