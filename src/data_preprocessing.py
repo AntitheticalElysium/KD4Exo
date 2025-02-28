@@ -1,7 +1,10 @@
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy.stats import boxcox
 import math
+from sklearn.preprocessing import StandardScaler
 
 # Columns retained for estimating exoplanet habitability:
 # 
@@ -55,9 +58,8 @@ def preprocess_exoplanet_data(file_path):
     ]
     df = df[retained_columns]
     
-    # Display missing values count
-    print("Missing values before preprocessing:")
-    print(df.isnull().sum())
+    #print("Missing values before preprocessing:")
+    #print(df.isnull().sum())
     
     # Drop columns with more than 25% missing values
     columns_to_drop = ['st_spectype', 'pl_insol', 'pl_eqt', 'pl_trandep', 'pl_orbincl']
@@ -68,9 +70,7 @@ def preprocess_exoplanet_data(file_path):
                     'st_teff', 'st_rad', 'st_lum', 'st_mass', 'st_met', 'sy_dist', 'pl_dens']
     df[num_features] = df[num_features].fillna(df[num_features].median())
     
-    # Display missing values after preprocessing
-    print("Missing values after preprocessing:")
-    print(df.isnull().sum())
+    #print(df.isnull().sum())
     
     return df
 
@@ -92,5 +92,41 @@ def plot_feature_distributions(df):
     plt.tight_layout()
     plt.show()
 
+def handle_skewness(df):
+    exclude_cols = {'sy_snum', 'sy_pnum', 'pl_orbccen'} # Skewness is natural here
+    skewness = df.skew()
+
+    # Print features with high skewness (above abs(0.75))
+    skewed_cols = [col for col in skewness[abs(skewness) > 0.75].index if col not in exclude_cols]
+    print(skewness[skewed_cols])
+
+    for col in skewed_cols:
+        df[col], _ = boxcox(df[col] + 1)
+
+    print(df.skew()[skewed_cols])
+
+def handle_outliers(df):
+    Q1 = df.quantile(0.25)
+    Q3 = df.quantile(0.75)
+    IQR = Q3 - Q1
+
+    outliers = ((df < (Q1 - 1.5 * IQR)) | (df > (Q3 + 1.5 * IQR))).sum()
+    print(outliers[outliers > 0])  # Features with outliers
+
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+
+    df = df.clip(lower=lower_bound, upper=upper_bound, axis=1)
+
+def handle_scaling(df):
+    scaler = StandardScaler()
+    # Scale every col
+    df.loc[:, :] = scaler.fit_transform(df)
+
 df = preprocess_exoplanet_data("../data/raw/exoplanet_data.csv")
+
+handle_outliers(df)
+handle_skewness(df)
+handle_scaling(df)
+
 plot_feature_distributions(df)
