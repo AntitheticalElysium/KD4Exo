@@ -129,4 +129,6 @@ handle_outliers(df)
 handle_skewness(df)
 handle_scaling(df)
 
+df.to_csv('../data/processed/exoplanet_data_clean.csv')
+
 plot_feature_distributions(df)
