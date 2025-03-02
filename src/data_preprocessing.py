@@ -182,7 +182,8 @@ def handle_outliers(df, exclude_cols=None):
     # Report outliers found
     outlier_counts = ((df[numeric_cols] < (Q1 - 1.5 * IQR)) | 
                       (df[numeric_cols] > (Q3 + 1.5 * IQR))).sum()
-    print("Outliers per column:", outlier_counts[outlier_counts > 0])
+    print("Outliers per column:")
+    print(outlier_counts[outlier_counts > 0])
     
     # Create bounds for clipping
     lower_bounds = Q1 - 1.5 * IQR
@@ -305,9 +306,9 @@ if __name__ == "__main__":
     print(f"Maximum habitability score: {df['habitability_score'].max():.4f}")
     
     # Optional processing steps
-    # df = handle_outliers(df)
-    # df = handle_skewness(df)
-    # df = scale_features(df)
+    df = handle_outliers(df)
+    df = handle_skewness(df)
+    df = scale_features(df)
     
     # Display top habitable planets
     df_sorted = df.sort_values(by='habitability_score', ascending=False)
