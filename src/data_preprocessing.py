@@ -4,17 +4,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import boxcox
 import math
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
 def preprocess_exoplanet_data(file_path):
-    """
-    Loads and preprocesses the exoplanet dataset.
-    Returns a dataframe with computed habitability index.
-    """
     # Load the dataset
     df = pd.read_csv(file_path)
-    
     # Columns to retain based on habitability relevance
     retained_columns = [
         'pl_name', 'pl_rade', 'pl_bmasse', 'pl_orbsmax', 'pl_orbeccen',
@@ -23,18 +18,85 @@ def preprocess_exoplanet_data(file_path):
     ]
     df = df[retained_columns]
     
-    # Drop columns with excessive missing values
-    columns_to_drop = ['st_spectype', 'pl_insol', 'pl_eqt', 'pl_trandep', 'pl_orbincl']
-    df.drop(columns=columns_to_drop, inplace=True)
+    # Process missing data using physical relationships instead of simple imputation
+    df = process_missing_data(df)
     
-    # Fill missing values with median
-    numerical_features = ['pl_rade', 'pl_bmasse', 'pl_orbsmax', 'pl_orbeccen', 'st_lum', 'st_mass', 'pl_dens']
-    df[numerical_features] = df[numerical_features].fillna(df[numerical_features].median())
-    
-    # Compute habitability index using Earth-like reference values
+    # Compute habitability index
     df = calculate_habitability_score(df)
     
     return df
+
+def process_missing_data(df, drop_threshold=0):
+    """
+    Process missing values in exoplanet data using physical relationships between parameters.
+    """
+    # Make a copy to avoid modifying the original dataframe
+    result_df = df.copy()
+    
+    # Key features that are critical for habitability assessment
+    key_features = ['pl_rade', 'pl_bmasse', 'pl_orbsmax', 'pl_orbeccen', 
+                    'st_lum', 'st_mass', 'pl_dens']
+    
+    # Drop rows with too many missing key features
+    missing_counts = result_df[key_features].isnull().sum(axis=1)
+    too_many_missing = missing_counts > (len(key_features) * drop_threshold)
+    result_df = result_df[~too_many_missing].copy()
+    
+    # Fill remaining missing values using physical relationships
+    
+    # Mass-Radius relationship for rocky planets (if one is missing)
+    mask_radius = result_df['pl_rade'].notna() & result_df['pl_bmasse'].isna()
+    # Mass-radius relation: M ≈ R^3.7 for rocky planets, M ≈ R^2.06 for gaseous
+    # Using average relation for simplicity: M ≈ R^3 
+    result_df.loc[mask_radius, 'pl_bmasse'] = result_df.loc[mask_radius, 'pl_rade']**3
+    
+    mask_mass = result_df['pl_bmasse'].notna() & result_df['pl_rade'].isna()
+    result_df.loc[mask_mass, 'pl_rade'] = result_df.loc[mask_mass, 'pl_bmasse']**(1/3)
+    
+    # Density calculations (if mass and radius are available but density is missing)
+    mask_dens = result_df['pl_dens'].isna() & result_df['pl_rade'].notna() & result_df['pl_bmasse'].notna()
+    # Density = Mass / Volume; Volume = (4/3)πR³; Using Earth units
+    earth_radius_in_km = 6371
+    earth_volume = (4/3) * np.pi * (earth_radius_in_km**3)
+    earth_mass_in_kg = 5.97e24
+    earth_density = 5.51  # g/cm³
+    
+    # Convert Earth-relative radius to volume in Earth volumes
+    planet_volume = (result_df.loc[mask_dens, 'pl_rade']**3)
+    # Density = mass/volume (in Earth units, then convert to g/cm³)
+    result_df.loc[mask_dens, 'pl_dens'] = (result_df.loc[mask_dens, 'pl_bmasse'] / planet_volume) * earth_density
+    
+    # Mass from density and radius
+    mask_mass_from_dens = result_df['pl_bmasse'].isna() & result_df['pl_dens'].notna() & result_df['pl_rade'].notna()
+    volume_ratio = result_df.loc[mask_mass_from_dens, 'pl_rade']**3
+    result_df.loc[mask_mass_from_dens, 'pl_bmasse'] = result_df.loc[mask_mass_from_dens, 'pl_dens'] * volume_ratio / earth_density
+    
+    # Stellar luminosity from stellar mass using mass-luminosity relation
+    mask_lum = result_df['st_lum'].isna() & result_df['st_mass'].notna()
+    # Simplified mass-luminosity relation: L ∝ M^3.5 for main sequence stars
+    result_df.loc[mask_lum, 'st_lum'] = result_df.loc[mask_lum, 'st_mass']**3.5
+    
+    # Stellar mass from luminosity (inverse of above)
+    mask_mass_star = result_df['st_mass'].isna() & result_df['st_lum'].notna()
+    result_df.loc[mask_mass_star, 'st_mass'] = result_df.loc[mask_mass_star, 'st_lum']**(1/3.5)
+    
+    # Set eccentricity to 0 (circular orbit) if missing and no other info available
+    # This is a simplification but reasonable as most discovered exoplanets have low eccentricity
+    result_df['pl_orbeccen'] = result_df['pl_orbeccen'].fillna(0.05)
+    
+    # For any remaining missing values, use a more sophisticated approach than median
+    # Group by system type (number of stars/planets) and use group medians
+    if result_df[key_features].isnull().any().any():
+        for feature in key_features:
+            if result_df[feature].isnull().any():
+                # Group by system architecture for more accurate imputation
+                grouped_median = result_df.groupby(['sy_snum', 'sy_pnum'])[feature].transform('median')
+                result_df[feature] = result_df[feature].fillna(grouped_median)
+                
+                # If still NaN values (rare system configurations), use global median
+                result_df[feature] = result_df[feature].fillna(result_df[feature].median())
+    
+    return result_df
 
 def calculate_habitability_score(df):
     """
@@ -306,9 +368,9 @@ if __name__ == "__main__":
     print(f"Maximum habitability score: {df['habitability_score'].max():.4f}")
     
     # Optional processing steps
-    df = handle_outliers(df)
-    df = handle_skewness(df)
-    df = scale_features(df)
+    #df = handle_outliers(df)
+    #df = handle_skewness(df)
+    #df = scale_features(df)
     
     # Display top habitable planets
     df_sorted = df.sort_values(by='habitability_score', ascending=False)
