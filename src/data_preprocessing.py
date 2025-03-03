@@ -78,13 +78,13 @@ def process_missing_data(df, drop_threshold=0):
         np.sqrt(result_df.loc[mask_temp, 'st_rad'] / (2 * result_df.loc[mask_temp, 'pl_orbsmax'])) * (1 - albedo) ** 0.25
     
     # Atmospheric Retention Probability
-    G = 6.67430e-11  # m^3/kg/s^2
-    earth_mass_kg = 5.97e24
-    earth_radius_m = 6371e3
-    
-    mask_escape = result_df['pl_rade'].notna() & result_df['pl_bmasse'].notna()
-    result_df.loc[mask_escape, 'pl_escape_vel'] = np.sqrt(2 * G * result_df.loc[mask_escape, 'pl_bmasse'] * earth_mass_kg / \
-                                                           (result_df.loc[mask_escape, 'pl_rade'] * earth_radius_m))
+    #G = 6.67430e-11  # m^3/kg/s^2
+    #earth_mass_kg = 5.97e24
+    #earth_radius_m = 6371e3
+    #
+    #mask_escape = result_df['pl_rade'].notna() & result_df['pl_bmasse'].notna()
+    #result_df.loc[mask_escape, 'pl_escape_vel'] = np.sqrt(2 * G * result_df.loc[mask_escape, 'pl_bmasse'] * earth_mass_kg / \
+    #                                                       (result_df.loc[mask_escape, 'pl_rade'] * earth_radius_m))
 
     # Fill remaining missing values with group median
     if result_df[key_features].isnull().any().any():
@@ -179,7 +179,7 @@ def calculate_habitability_score(df):
 
     # 8. ATMOSPHERIC RETENTION PROBABILITY
 
-    # 9. ESTIMATED SURFACE TEMPERATURE
+    # 9. ESTIMATED EQUILIBRIUM TEMPERATURE
     earth_temp = 288  # K (Earth's average surface temperature)
     result_df['temp_score'] = np.exp(-((result_df['pl_temp'] - earth_temp) ** 2) / 5000)
 
@@ -379,8 +379,8 @@ if __name__ == "__main__":
     
     # Display top habitable planets
     df_sorted = df.sort_values(by='habitability_score', ascending=False)
-    print("\nTop 10 most Earth-like planets:")
-    print(df_sorted[['pl_name', 'habitability_score', 'pl_rade', 'pl_orbsmax']].head(10000))
+    print("\nTop 20 most Earth-like planets:")
+    print(df_sorted[['pl_name', 'habitability_score', 'pl_rade', 'pl_orbsmax']].head(20))
     
     # Save processed data
     df.to_csv('../data/processed/exoplanet_data_clean.csv', index=False)
