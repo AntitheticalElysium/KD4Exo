@@ -187,7 +187,7 @@ def calculate_habitability_score(df):
     # Weight the factors according to their importance for habitability
     result_df['habitability_score'] = (
         0.25 * result_df['hz_score'] +           # Most important: being in habitable zone
-        0.15 * result_df['temp_score'] +         # Having a normal sufrace temp
+        0.15 * result_df['temp_score'] +         # Having Earth-like surface temp
         0.10 * result_df['radius_score'] +       # Having Earth-like radius
         0.10 * result_df['mass_score'] +         # Having Earth-like mass  
         0.10 * result_df['stability_score'] +    # Stable orbit
@@ -208,7 +208,7 @@ def calculate_habitability_score(df):
         (result_df['pl_orbsmax'].between(0.95, 1.05)) & 
         (result_df['pl_orbeccen'] < 0.02) &
         (result_df['st_mass'].between(0.95, 1.05)) &
-        (result_df['sy_snum'] == 1)  # Earth is in a single-star system
+        (result_df['sy_snum'] == 1)
     )
     result_df.loc[earth_like, 'habitability_score'] = np.maximum(
         result_df.loc[earth_like, 'habitability_score'], 
