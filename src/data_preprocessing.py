@@ -180,15 +180,18 @@ def calculate_habitability_score(df):
     # 8. ATMOSPHERIC RETENTION PROBABILITY
 
     # 9. ESTIMATED SURFACE TEMPERATURE
-    
+    earth_temp = 288  # K (Earth's average surface temperature)
+    result_df['temp_score'] = np.exp(-((result_df['pl_temp'] - earth_temp) ** 2) / 5000)
+
     # 10. FINAL HABITABILITY SCORE
     # Weight the factors according to their importance for habitability
     result_df['habitability_score'] = (
-        0.30 * result_df['hz_score'] +           # Most important: being in habitable zone
-        0.15 * result_df['radius_score'] +       # Having Earth-like radius
-        0.15 * result_df['mass_score'] +         # Having Earth-like mass  
-        0.12 * result_df['stability_score'] +    # Stable orbit
-        0.08 * result_df['density_score'] +      # Earth-like composition
+        0.25 * result_df['hz_score'] +           # Most important: being in habitable zone
+        0.15 * result_df['temp_score'] +         # Having a normal sufrace temp
+        0.10 * result_df['radius_score'] +       # Having Earth-like radius
+        0.10 * result_df['mass_score'] +         # Having Earth-like mass  
+        0.10 * result_df['stability_score'] +    # Stable orbit
+        0.10 * result_df['density_score'] +      # Earth-like composition
         0.08 * result_df['stellar_lifetime_score'] + # Long-lived, stable star
         0.05 * result_df['tidal_score'] +        # Avoid tidal locking
         0.04 * result_df['star_system_score'] +  # Single-star systems preferred
@@ -218,7 +221,7 @@ def calculate_habitability_score(df):
         'radius_score', 'mass_score', 'stability_score', 
         'density_score', 'stellar_lifetime_score', 
         'tidal_parameter', 'tidal_score',
-        'star_system_score', 'planet_system_score'
+        'star_system_score', 'planet_system_score', 'temp_score'
     ]
     result_df = result_df.drop(columns=[col for col in columns_to_drop if col in result_df.columns])
     
