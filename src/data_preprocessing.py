@@ -373,9 +373,9 @@ if __name__ == "__main__":
     print(f"Maximum habitability score: {df['habitability_score'].max():.4f}")
     
     # Optional processing steps
-    #df = handle_outliers(df)
-    #df = handle_skewness(df)
-    #df = scale_features(df)
+    df = handle_outliers(df)
+    df = handle_skewness(df)
+    df = scale_features(df)
     
     # Display top habitable planets
     df_sorted = df.sort_values(by='habitability_score', ascending=False)
@@ -386,5 +386,5 @@ if __name__ == "__main__":
     df.to_csv('../data/processed/exoplanet_data_clean.csv', index=False)
     
     # Visualizations
-    # plot_feature_distributions(df)
+    plot_feature_distributions(df)
     # plot_habitability_rankings(df)
