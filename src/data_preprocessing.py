@@ -404,23 +404,30 @@ def _calculate_viability_factors(df):
     return df
 
 def _combine_habitability_factors(df):
-    """Combine all habitability factors into a single score."""
-    df['habitability_score'] = (
-        df['hz_score'] *              # Habitable zone is crucial
-        df['temp_viability'] *        # Temperature must allow liquid water
-        df['mass_viability'] *        # Mass must allow rocky composition
-        df['radiation_viability'] *   # Radiation environment must be survivable
-        (
-            0.25 * df['atm_retention_prob'] +    # Atmosphere is very important
-            0.15 * df['density_score'] +         # Earth-like composition
-            0.15 * df['stability_score'] +       # Stable orbit
-            0.15 * df['radius_score'] +          # Earth-like size
-            0.10 * df['stellar_lifetime_score'] + # Long-lived star
-            0.10 * df['tidal_score'] +           # Avoid tidal locking
-            0.05 * df['star_system_score'] +     # Stable star system
-            0.05 * df['planet_system_score']     # Stable planetary system
-        )
+    """Combine all habitability factors into a single score using weighted geometric mean."""
+    
+    # Geometric mean of viability factors with weights
+    viability_score = (
+        df['hz_score'] ** 0.3 *              # Habitable zone position
+        df['temp_viability'] ** 0.3 *        # Temperature suitability
+        df['mass_viability'] ** 0.2 *        # Mass appropriateness
+        df['radiation_viability'] ** 0.2     # Radiation environment
     )
+    
+    # Arithmetic mean of other desirable factors
+    other_factors = (
+        0.25 * df['atm_retention_prob'] +    # Atmosphere is very important
+        0.15 * df['density_score'] +         # Earth-like composition
+        0.15 * df['stability_score'] +       # Stable orbit
+        0.15 * df['radius_score'] +          # Earth-like size
+        0.10 * df['stellar_lifetime_score'] + # Long-lived star
+        0.10 * df['tidal_score'] +           # Avoid tidal locking
+        0.05 * df['star_system_score'] +     # Stable star system
+        0.05 * df['planet_system_score']     # Stable planetary system
+    )
+    
+    # Combine the two components
+    df['habitability_score'] = (viability_score * other_factors) ** 0.2 # Scale out the values
     
     return df
 
