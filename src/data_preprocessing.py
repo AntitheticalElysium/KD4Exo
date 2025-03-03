@@ -186,18 +186,19 @@ def calculate_habitability_score(df):
     # 10. FINAL HABITABILITY SCORE
     # Weight the factors according to their importance for habitability
     result_df['habitability_score'] = (
-        0.25 * result_df['hz_score'] +           # Most important: being in habitable zone
-        0.15 * result_df['temp_score'] +         # Having Earth-like surface temp
-        0.10 * result_df['radius_score'] +       # Having Earth-like radius
-        0.10 * result_df['mass_score'] +         # Having Earth-like mass  
+    result_df['hz_score'] * (                    # Most important: being in habitable zone
+        0.30 * result_df['temp_score'] +         # Having Earth-like surface temp
+        0.15 * result_df['radius_score'] +       # Having Earth-like radius
+        0.15 * result_df['mass_score'] +         # Having Earth-like mass  
         0.10 * result_df['stability_score'] +    # Stable orbit
         0.10 * result_df['density_score'] +      # Earth-like composition
-        0.08 * result_df['stellar_lifetime_score'] + # Long-lived, stable star
+        0.05 * result_df['stellar_lifetime_score'] + # Long-lived, stable star
         0.05 * result_df['tidal_score'] +        # Avoid tidal locking
-        0.04 * result_df['star_system_score'] +  # Single-star systems preferred
-        0.03 * result_df['planet_system_score']  # Moderate number of planets preferred
+        0.05 * result_df['star_system_score'] +  # Single-star systems preferred
+        0.05 * result_df['planet_system_score']  # Moderate number of planets preferred
+        )
     )
-    
+
     # Normalize scores to 0-1 range (though it should already be close to this)
     result_df['habitability_score'] = np.clip(result_df['habitability_score'], 0, 1)
     
@@ -373,18 +374,18 @@ if __name__ == "__main__":
     print(f"Maximum habitability score: {df['habitability_score'].max():.4f}")
     
     # Optional processing steps
-    df = handle_outliers(df)
-    df = handle_skewness(df)
-    df = scale_features(df)
+    #df = handle_outliers(df)
+    #df = handle_skewness(df)
+    #df = scale_features(df)
     
     # Display top habitable planets
     df_sorted = df.sort_values(by='habitability_score', ascending=False)
     print("\nTop 20 most Earth-like planets:")
-    print(df_sorted[['pl_name', 'habitability_score', 'pl_rade', 'pl_orbsmax']].head(20))
+    print(df_sorted[['pl_name', 'habitability_score', 'pl_rade', 'pl_orbsmax']].head(50))
     
     # Save processed data
     df.to_csv('../data/processed/exoplanet_data_clean.csv', index=False)
     
     # Visualizations
-    plot_feature_distributions(df)
+    #plot_feature_distributions(df)
     # plot_habitability_rankings(df)
