@@ -13,6 +13,8 @@ CONSTANTS = {
     'EARTH_RADIUS_M': 6371e3,      # Earth radius in m
     'EARTH_DENSITY': 5.51,         # Earth density in g/cm³
     'EARTH_TEMP': 288,             # Earth average surface temperature in K
+    'SOLAR_RADIUS_M' : 6.955e8,    # SRAD to m
+    'AU_TO_M' : 1.496e11,          # AU to m
     'K_BOLTZMANN': 1.380649e-23,   # Boltzmann constant (J/K)
     'H_MASS': 1.6735575e-27,       # Mass of hydrogen atom (kg)
     'HE_MASS': 6.6464764e-27,      # Mass of helium atom (kg)
@@ -232,8 +234,9 @@ def _ensure_temperature_data(df):
     mask_temp = df['st_teff'].notna() & df['st_rad'].notna() & df['pl_orbsmax'].notna()
         
     df.loc[mask_temp, 'pl_temp'] = df.loc[mask_temp, 'st_teff'] * \
-        np.sqrt(df.loc[mask_temp, 'st_rad'] / (2 * df.loc[mask_temp, 'pl_orbsmax'])) * \
-        (1 - CONSTANTS['ALBEDO']) ** 0.25
+        np.sqrt((df.loc[mask_temp, 'st_rad'] * CONSTANTS['SOLAR_RADIUS_M']) / \
+                (2 * df.loc[mask_temp, 'pl_orbsmax'] * CONSTANTS['AU_TO_M'])) * \
+        (1 - CONSTANTS['ALBEDO'])**0.25
         
     # Fill remaining with median
     df['pl_temp'] = df['pl_temp'].fillna(df['pl_temp'].median())
@@ -401,7 +404,8 @@ def _calculate_viability_factors(df):
 
 def _combine_habitability_factors(df):
     """Combine all habitability factors into a single score using weighted geometric mean."""
-    
+    pd.set_option("display.max_columns", None)
+    print(df.loc[[3194]])
     # Geometric mean of viability factors with weights
     viability_score = (
         df['hz_score'] ** 0.3 *              # Habitable zone position
@@ -618,18 +622,18 @@ if __name__ == "__main__":
     print(f"Maximum habitability score: {df['habitability_score'].max():.4f}")
     
     # Optional processing steps
-    df = handle_outliers(df)
-    df = handle_skewness(df)
-    df = scale_features(df)
+    #df = handle_outliers(df)
+    #df = handle_skewness(df)
+    #df = scale_features(df)
     
     # Display top habitable planets
     df_sorted = df.sort_values(by='habitability_score', ascending=False)
     print("\nTop 20 most Earth-like planets:")
-    print(df_sorted[['pl_name', 'habitability_score', 'pl_rade', 'pl_orbsmax', 'atm_retention_prob']].head(50))
+    print(df_sorted[['pl_name', 'habitability_score', 'pl_rade', 'atm_retention_prob']].head(20))
     
     # Save processed data
     df.to_csv('../data/processed/exoplanet_data_clean.csv', index=False)
     
     # Visualizations
-    plot_feature_distributions(df)
+    # plot_feature_distributions(df)
     # plot_habitability_rankings(df)
