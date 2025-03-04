@@ -228,23 +228,21 @@ def _calculate_escape_velocity(df):
 
 def _ensure_temperature_data(df):
     """Ensure temperature data is available, estimate if needed."""
-    if 'pl_temp' not in df.columns or df['pl_temp'].isna().all():
-        # Estimate equilibrium temperature
-        mask_temp = df['st_teff'].notna() & df['st_rad'].notna() & df['pl_orbsmax'].notna()
+    # Estimate equilibrium temperature
+    mask_temp = df['st_teff'].notna() & df['st_rad'].notna() & df['pl_orbsmax'].notna()
         
-        df.loc[mask_temp, 'pl_temp'] = df.loc[mask_temp, 'st_teff'] * \
-            np.sqrt(df.loc[mask_temp, 'st_rad'] / (2 * df.loc[mask_temp, 'pl_orbsmax'])) * \
-            (1 - CONSTANTS['ALBEDO']) ** 0.25
+    df.loc[mask_temp, 'pl_temp'] = df.loc[mask_temp, 'st_teff'] * \
+        np.sqrt(df.loc[mask_temp, 'st_rad'] / (2 * df.loc[mask_temp, 'pl_orbsmax'])) * \
+        (1 - CONSTANTS['ALBEDO']) ** 0.25
         
-        # Fill remaining with median
-        df['pl_temp'] = df['pl_temp'].fillna(df['pl_temp'].median())
-    
+    # Fill remaining with median
+    df['pl_temp'] = df['pl_temp'].fillna(df['pl_temp'].median())
     return df
 
 def _calculate_jeans_parameters(df):
     """Calculate Jeans escape parameters for different atmospheric gases."""
     mask_params = df['escape_vel'].notna() & df['pl_temp'].notna()
-    
+
     # Calculate for hydrogen (most easily lost)
     df.loc[mask_params, 'jeans_H'] = (
         df.loc[mask_params, 'escape_vel']**2 * CONSTANTS['H_MASS'] / 
@@ -291,7 +289,7 @@ def _calculate_atmosphere_retention(df):
     # Calculate retention probability components for each gas
     for gas, threshold in JEANS_THRESHOLDS.items():
         df[f'{gas}_retention'] = 1 / (1 + np.exp(-(df[f'jeans_{gas}'] - threshold)))
-    
+
     # Combine retention probabilities with weights
     # Emphasize N and O for habitability (Earth-like atmosphere)
     df['atm_retention_prob'] = (
@@ -303,7 +301,6 @@ def _calculate_atmosphere_retention(df):
     
     # Clip to 0-1 range
     df['atm_retention_prob'] = np.clip(df['atm_retention_prob'], 0, 1)
-    
     return df
 
 def _calculate_habitable_zone_score(df):
@@ -621,9 +618,9 @@ if __name__ == "__main__":
     print(f"Maximum habitability score: {df['habitability_score'].max():.4f}")
     
     # Optional processing steps
-    #df = handle_outliers(df)
-    #df = handle_skewness(df)
-    #df = scale_features(df)
+    df = handle_outliers(df)
+    df = handle_skewness(df)
+    df = scale_features(df)
     
     # Display top habitable planets
     df_sorted = df.sort_values(by='habitability_score', ascending=False)
@@ -634,5 +631,5 @@ if __name__ == "__main__":
     df.to_csv('../data/processed/exoplanet_data_clean.csv', index=False)
     
     # Visualizations
-    #plot_feature_distributions(df)
+    plot_feature_distributions(df)
     # plot_habitability_rankings(df)
