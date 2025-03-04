@@ -404,15 +404,12 @@ def _calculate_viability_factors(df):
 
 def _combine_habitability_factors(df):
     """Combine all habitability factors into a single score using weighted geometric mean."""
-    pd.set_option("display.max_columns", None)
-    print(df.loc[153])
     # Geometric mean of viability factors with weights
     viability_score = (
         df['hz_score'] ** 0.3 *              # Habitable zone position
         df['temp_viability'] ** 0.3 *        # Temperature suitability
         df['mass_viability'] ** 0.2 *        # Mass appropriateness
-        df['radiation_viability'] ** 0.2 *   # Radiation environment
-        df['radius_score'] ** 0.2            # Avoid gas giants
+        df['radiation_viability'] ** 0.2     # Radiation environment
     )
     
     # Arithmetic mean of other desirable factors
@@ -428,8 +425,12 @@ def _combine_habitability_factors(df):
     )
     
     # Combine the two components
-    df['habitability_score'] = (viability_score * other_factors) ** 0.2 # Scale out the values
+    df['habitability_score'] = (viability_score * other_factors) ** 0.1 # Scale out the values
     
+    #df_sorted = df.sort_values(by='habitability_score', ascending=False)
+    #print("\nTop 50 most Earth-like planets:")
+    #print(df_sorted[['pl_name', 'habitability_score', 'hz_score', 'temp_viability', 'mass_viability', 'radiation_viability', 'radius_score']].head(50))
+
     return df
 
 def _adjust_special_cases(df):
@@ -449,18 +450,19 @@ def _adjust_special_cases(df):
         0.95
     )
     
-    ## Make sure gas giants and extremely hot/cold planets get very low scores
-    #extreme_cases = (
-    #    (df['pl_bmasse'] > 50) |                  # Definite gas giants
-    #    (df['pl_temp'] > 500) |                   # Too hot
-    #    (df['pl_temp'] < 100) |                   # Too cold
-    #    (df['pl_orbsmax'] < 0.01) |               # Extremely close orbits
-    #    (df['atm_retention_prob'] < 0.1)          # Cannot retain atmosphere
-    #)
-    #df.loc[extreme_cases, 'habitability_score'] = np.minimum(
-    #    df.loc[extreme_cases, 'habitability_score'],
-    #    0.05
-    #)
+    # Make sure gas giants and extremely hot/cold planets get very low scores
+    extreme_cases = (
+        (df['pl_bmasse'] > 50) |                  # Definite gas giants
+        (df['pl_rade'] > 2) |                   # Likely no solid surface
+        (df['pl_temp'] > 500) |                   # Too hot
+        (df['pl_temp'] < 100) |                   # Too cold
+        (df['pl_orbsmax'] < 0.01) |               # Extremely close orbits
+        (df['atm_retention_prob'] < 0.3)          # Cannot retain atmosphere
+    )
+    df.loc[extreme_cases, 'habitability_score'] = np.minimum(
+        df.loc[extreme_cases, 'habitability_score'],
+        0.05
+    )
     
     # Normalize scores to 0-1 range
     df['habitability_score'] = np.clip(df['habitability_score'], 0, 1)
@@ -615,6 +617,7 @@ def plot_habitability_rankings(df, top_n=20):
     plt.show()
 
 if __name__ == "__main__":
+    pd.set_option("display.max_columns", None)
     # Load and preprocess data
     df = preprocess_exoplanet_data("../data/raw/exoplanet_data.csv")
     
@@ -629,8 +632,8 @@ if __name__ == "__main__":
     
     # Display top habitable planets
     df_sorted = df.sort_values(by='habitability_score', ascending=False)
-    print("\nTop 20 most Earth-like planets:")
-    print(df_sorted[['pl_name', 'habitability_score', 'pl_rade', 'atm_retention_prob']].head(20))
+    print("\nTop 50 most Earth-like planets:")
+    print(df_sorted[['pl_name', 'habitability_score', 'pl_rade', 'atm_retention_prob']].head(50))
     
     # Save processed data
     df.to_csv('../data/processed/exoplanet_data_clean.csv', index=False)
