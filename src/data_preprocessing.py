@@ -328,7 +328,7 @@ def _calculate_habitable_zone_score(df):
 def _calculate_planetary_properties_scores(df):
     """Calculate scores related to planetary physical properties."""
     # Radius score - peaks at Earth radius (1.0), declines as radius diverges
-    df['radius_score'] = np.exp(-((df['pl_rade'] - 1.0) ** 2) / 0.5)
+    df['radius_score'] = np.exp(-((df['pl_rade'] - 1.0) ** 2) / 0.3)
     
     # Mass score - peaks near Earth mass (1.0), with wider acceptance range for super-Earths
     df['mass_score'] = np.exp(-(np.log10(df['pl_bmasse']) ** 2) / 0.8)
@@ -345,8 +345,8 @@ def _calculate_planetary_properties_scores(df):
     # Tidal locking likelihood
     df['tidal_parameter'] = df['st_mass'] / (df['pl_orbsmax'] ** 3)
     max_tidal = df['tidal_parameter'].max()
-    df['tidal_score'] = np.exp(-df['tidal_parameter'] / (max_tidal / 5))
-    
+    df['tidal_score'] = np.exp(-np.log1p(df['tidal_parameter']) / (np.log1p(max_tidal) / 5))
+
     return df
 
 def _calculate_system_architecture_scores(df):
@@ -393,10 +393,10 @@ def _calculate_viability_factors(df):
     )
     
     # Radiation environment (extreme radiation is eliminatory)
-    m_dwarfs_close = (df['st_teff'] < 3800) & (df['pl_orbsmax'] < 0.05)
+    m_dwarfs_close = (df['st_teff'] < 3800) & (df['pl_orbsmax'] < 0.2)
     df['radiation_viability'] = np.where(
         m_dwarfs_close,
-        0.1,  # Severe penalty for very close planets around M-dwarfs
+        0.01,  # Severe penalty for very close planets around M-dwarfs
         1.0   # No penalty otherwise
     )
     
@@ -405,13 +405,14 @@ def _calculate_viability_factors(df):
 def _combine_habitability_factors(df):
     """Combine all habitability factors into a single score using weighted geometric mean."""
     pd.set_option("display.max_columns", None)
-    print(df.loc[[3194]])
+    print(df.loc[153])
     # Geometric mean of viability factors with weights
     viability_score = (
         df['hz_score'] ** 0.3 *              # Habitable zone position
         df['temp_viability'] ** 0.3 *        # Temperature suitability
         df['mass_viability'] ** 0.2 *        # Mass appropriateness
-        df['radiation_viability'] ** 0.2     # Radiation environment
+        df['radiation_viability'] ** 0.2 *   # Radiation environment
+        df['radius_score'] ** 0.2            # Avoid gas giants
     )
     
     # Arithmetic mean of other desirable factors
