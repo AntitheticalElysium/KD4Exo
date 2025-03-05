@@ -30,7 +30,7 @@ This project aims to develop a machine learning pipeline for predicting the habi
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/exoplanet-habitability.git
+git clone https://github.com/AntitheticalElysium/KD4Exo.git
 
 # Install dependencies
 pip install -r requirements.txt
