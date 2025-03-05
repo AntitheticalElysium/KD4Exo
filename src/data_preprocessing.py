@@ -404,7 +404,8 @@ def _calculate_viability_factors(df):
 
 def _combine_habitability_factors(df):
     """Combine all habitability factors into a single score using weighted geometric mean."""
-    # Geometric mean of viability factors with weights
+    #Geometric mean of viability factors with weights
+    print(df.loc[1735])
     viability_score = (
         df['hz_score'] ** 0.3 *              # Habitable zone position
         df['temp_viability'] ** 0.3 *        # Temperature suitability
@@ -453,11 +454,12 @@ def _adjust_special_cases(df):
     # Make sure gas giants and extremely hot/cold planets get very low scores
     extreme_cases = (
         (df['pl_bmasse'] > 50) |                  # Definite gas giants
-        (df['pl_rade'] > 2) |                   # Likely no solid surface
+        (df['pl_rade'] > 2) |                     # Likely no solid surface
         (df['pl_temp'] > 500) |                   # Too hot
         (df['pl_temp'] < 100) |                   # Too cold
         (df['pl_orbsmax'] < 0.01) |               # Extremely close orbits
-        (df['atm_retention_prob'] < 0.3)          # Cannot retain atmosphere
+        (df['atm_retention_prob'] < 0.5)          # Cannot retain atmosphere
+        # (df['radiation_viability'] < 0.2)
     )
     df.loc[extreme_cases, 'habitability_score'] = np.minimum(
         df.loc[extreme_cases, 'habitability_score'],
