@@ -186,6 +186,62 @@ def calculate_habitability_score(df):
     
     return result_df
 
+
+def _calculate_magnetic_field_protection(df):
+    """
+    Calculate a magnetic field protection factor for atmospheric retention.
+
+    """
+    # Initialize magnetic protection factor
+    df['magnetic_protection'] = 1.0
+    
+    # Mass factor - exponential growth of magnetic field potential with mass
+    # Using a more aggressive scaling that increases rapidly with mass
+    # Peaks around 1-3 Earth masses, then levels off
+    df['mass_magnetic_factor'] = np.where(
+        df['pl_bmasse'] <= 3,
+        1 - np.exp(-df['pl_bmasse']),  # Rapid increase for smaller masses
+        1 - np.exp(-3) * np.exp(-(df['pl_bmasse'] - 3) / 10)  # Slower increase after 3 Earth masses
+    )
+    
+    # Density factor - higher density suggests more metallic core
+    # Earth's density is ~5.51 g/cm³, use this as a reference
+    df['density_magnetic_factor'] = np.exp(
+        -((df['pl_dens'] - CONSTANTS['EARTH_DENSITY']) ** 2) / 5  # Broader, gentler curve
+    )
+    
+    # Rotation period factor
+    # Optimal rotation period around 20-30 hours
+    # Sharp peaks around this range, drops off quickly outside
+    df['estimated_rotation_period'] = 24 * np.sqrt(df['pl_bmasse']) / np.sqrt(1.0)
+    df['rotation_magnetic_factor'] = np.exp(
+        -((df['estimated_rotation_period'] - 25) ** 2) / 200
+    )
+    
+    # Radius factor - larger planets have more potential for complex internal dynamics
+    # Use log scale to handle wide range of planetary radii
+    df['radius_magnetic_factor'] = np.exp(
+        -((np.log10(df['pl_rade']) - np.log10(1.0)) ** 2) / 0.5
+    )
+    
+    # Combine factors
+    df['magnetic_protection'] = (
+        0.4 * df['mass_magnetic_factor'] +
+        0.2 * df['density_magnetic_factor'] +
+        0.2 * df['rotation_magnetic_factor'] +
+        0.2 * df['radius_magnetic_factor']
+    )
+    
+    # Adjust magnetic protection based on stellar activity
+    df['magnetic_protection'] = (
+        df['magnetic_protection'] * (1 - df['stellar_activity_factor'])
+    )
+
+    # Clip to 0-1 range
+    df['magnetic_protection'] = np.clip(df['magnetic_protection'], 0, 1)   
+ 
+    return df
+
 def estimate_atmosphere_probability(df):
     """
     Estimate the probability that an exoplanet has retained a substantial atmosphere.
@@ -206,12 +262,24 @@ def estimate_atmosphere_probability(df):
     
     # Calculate atmospheric retention probability
     result_df = _calculate_atmosphere_retention(result_df)
+
+    # Add magnetic field protection assessment
+    result_df = _calculate_magnetic_field_protection(result_df)
     
+    # Modify atmospheric retention probability
+    # Combine existing atm_retention_prob with magnetic protection
+    result_df['atm_retention_prob'] = np.clip(
+        result_df['atm_retention_prob'] * result_df['magnetic_protection'],
+        0, 1
+    )
+
     # Clean up intermediate columns
     columns_to_drop = [
         'escape_vel', 'jeans_H', 'jeans_He', 'jeans_N', 'jeans_O',
-        'H_retention', 'He_retention', 'N_retention', 'O_retention',
-        'stellar_activity_factor'
+        'H_retention', 'He_retention', 'N_retention', 'O_retention'
+        'estimated_rotation_period', 'mass_magnetic_factor', 
+        'density_magnetic_factor', 'rotation_magnetic_factor', 
+        'radius_magnetic_factor', 'magnetic_protection', 'stellar_activity_factor'
     ]
     result_df = result_df.drop(columns=[col for col in columns_to_drop if col in result_df.columns])
     
@@ -275,15 +343,15 @@ def _calculate_jeans_parameters(df):
 def _assess_stellar_activity(df):
     """Assess the impact of stellar activity on atmospheric retention."""
     # Initialize activity factor
-    df['stellar_activity_factor'] = 1.0
+    df['stellar_activity_factor'] = 0.0
     
     # Identify M-dwarfs and close-in planets
     m_dwarfs = df['st_teff'] < 3800
     close_in = df['pl_orbsmax'] < 0.1
     
     # Penalize close-in planets around M-dwarfs
-    df.loc[m_dwarfs & close_in, 'stellar_activity_factor'] = 0.3
-    df.loc[m_dwarfs & ~close_in, 'stellar_activity_factor'] = 0.7
+    df.loc[m_dwarfs & close_in, 'stellar_activity_factor'] = 0.25
+    df.loc[m_dwarfs & ~close_in, 'stellar_activity_factor'] = 0.5
     
     return df
 
@@ -300,7 +368,7 @@ def _calculate_atmosphere_retention(df):
         0.1 * df['He_retention'] +
         0.4 * df['N_retention'] +
         0.4 * df['O_retention']
-    ) * df['stellar_activity_factor']
+    )
     
     # Clip to 0-1 range
     df['atm_retention_prob'] = np.clip(df['atm_retention_prob'], 0, 1)
@@ -393,7 +461,7 @@ def _calculate_viability_factors(df):
     )
     
     # Radiation environment (extreme radiation is eliminatory)
-    m_dwarfs_close = (df['st_teff'] < 3800) & (df['pl_orbsmax'] < 0.2)
+    m_dwarfs_close = (df['st_teff'] < 3800) & (df['pl_orbsmax'] < 0.1)
     df['radiation_viability'] = np.where(
         m_dwarfs_close,
         0.01,  # Severe penalty for very close planets around M-dwarfs
@@ -405,17 +473,17 @@ def _calculate_viability_factors(df):
 def _combine_habitability_factors(df):
     """Combine all habitability factors into a single score using weighted geometric mean."""
     #Geometric mean of viability factors with weights
-    print(df.loc[1735])
     viability_score = (
         df['hz_score'] ** 0.3 *              # Habitable zone position
         df['temp_viability'] ** 0.3 *        # Temperature suitability
+        df['atm_retention_prob'] ** 0.3 *    # Atmosphere is very important
         df['mass_viability'] ** 0.2 *        # Mass appropriateness
         df['radiation_viability'] ** 0.2     # Radiation environment
     )
     
     # Arithmetic mean of other desirable factors
     other_factors = (
-        0.25 * df['atm_retention_prob'] +    # Atmosphere is very important
+        0.25 * df['atm_retention_prob'] +    # Has an atmosphere 
         0.15 * df['density_score'] +         # Earth-like composition
         0.15 * df['stability_score'] +       # Stable orbit
         0.15 * df['radius_score'] +          # Earth-like size
@@ -428,10 +496,6 @@ def _combine_habitability_factors(df):
     # Combine the two components
     df['habitability_score'] = (viability_score * other_factors) ** 0.1 # Scale out the values
     
-    #df_sorted = df.sort_values(by='habitability_score', ascending=False)
-    #print("\nTop 50 most Earth-like planets:")
-    #print(df_sorted[['pl_name', 'habitability_score', 'hz_score', 'temp_viability', 'mass_viability', 'radiation_viability', 'radius_score']].head(50))
-
     return df
 
 def _adjust_special_cases(df):
@@ -457,7 +521,6 @@ def _adjust_special_cases(df):
         (df['pl_rade'] > 2) |                     # Likely no solid surface
         (df['pl_temp'] > 500) |                   # Too hot
         (df['pl_temp'] < 100) |                   # Too cold
-        (df['pl_orbsmax'] < 0.01) |               # Extremely close orbits
         (df['atm_retention_prob'] < 0.5)          # Cannot retain atmosphere
         # (df['radiation_viability'] < 0.2)
     )
@@ -624,18 +687,18 @@ if __name__ == "__main__":
     df = preprocess_exoplanet_data("../data/raw/exoplanet_data.csv")
     
     # Display habitability statistics
-    print(f"Average habitability score: {df['habitability_score'].mean():.4f}")
-    print(f"Maximum habitability score: {df['habitability_score'].max():.4f}")
+    # print(f"Average habitability score: {df['habitability_score'].mean():.4f}")
+    # print(f"Maximum habitability score: {df['habitability_score'].max():.4f}")
     
     # Optional processing steps
-    #df = handle_outliers(df)
-    #df = handle_skewness(df)
-    #df = scale_features(df)
+    df = handle_outliers(df)
+    df = handle_skewness(df)
+    df = scale_features(df)
     
     # Display top habitable planets
-    df_sorted = df.sort_values(by='habitability_score', ascending=False)
-    print("\nTop 50 most Earth-like planets:")
-    print(df_sorted[['pl_name', 'habitability_score', 'pl_rade', 'atm_retention_prob']].head(50))
+    # df_sorted = df.sort_values(by='habitability_score', ascending=False)
+    # print("\nTop 50 most Earth-like planets:")
+    # print(df_sorted[['pl_name', 'habitability_score', 'pl_rade', 'atm_retention_prob']].head(50))
     
     # Save processed data
     df.to_csv('../data/processed/exoplanet_data_clean.csv', index=False)
