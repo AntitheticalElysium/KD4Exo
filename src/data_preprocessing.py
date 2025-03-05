@@ -4,7 +4,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import boxcox
 import math
+import joblib
 from sklearn.preprocessing import StandardScaler
+
+RAW_DATA_PATH = "../data/raw/exoplanet_data.csv"
+CLEAN_DATA_PATH = "../data/processed/exoplanet_data_clean.csv"
 
 # Physical constants
 CONSTANTS = {
@@ -31,12 +35,12 @@ JEANS_THRESHOLDS = {
     'O': 20.0    # Oxygen requires highest
 }
 
-def preprocess_exoplanet_data(file_path):
+def preprocess_exoplanet_data():
     """
     Main function to load and process exoplanet data, calculating habitability scores.
     """
     # Load the dataset
-    df = pd.read_csv(file_path)
+    df = pd.read_csv(RAW_DATA_PATH)
     
     # Columns to retain based on habitability relevance
     retained_columns = [
@@ -626,6 +630,10 @@ def scale_features(df, exclude_cols=None):
     # Apply scaling
     scaler = StandardScaler()
     df[cols_to_scale] = scaler.fit_transform(df[cols_to_scale])
+
+    # Save the scaler for later inference
+    joblib.dump(scaler, "../models/scaler.pkl")
+    print("Scaler saved to ../models/scaler.pkl")
     
     return df
 
@@ -684,7 +692,7 @@ def plot_habitability_rankings(df, top_n=20):
 if __name__ == "__main__":
     pd.set_option("display.max_columns", None)
     # Load and preprocess data
-    df = preprocess_exoplanet_data("../data/raw/exoplanet_data.csv")
+    df = preprocess_exoplanet_data()
     
     # Display habitability statistics
     # print(f"Average habitability score: {df['habitability_score'].mean():.4f}")
@@ -696,12 +704,12 @@ if __name__ == "__main__":
     df = scale_features(df)
     
     # Display top habitable planets
-    # df_sorted = df.sort_values(by='habitability_score', ascending=False)
-    # print("\nTop 50 most Earth-like planets:")
-    # print(df_sorted[['pl_name', 'habitability_score', 'pl_rade', 'atm_retention_prob']].head(50))
+    df_sorted = df.sort_values(by='habitability_score', ascending=False)
+    print("\nTop 50 most Earth-like planets:")
+    print(df_sorted[['pl_name', 'habitability_score', 'pl_rade', 'atm_retention_prob']].head(50))
     
     # Save processed data
-    df.to_csv('../data/processed/exoplanet_data_clean.csv', index=False)
+    df.to_csv(CLEAN_DATA_PATH, index=False)
     
     # Visualizations
     # plot_feature_distributions(df)
