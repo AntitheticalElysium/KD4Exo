@@ -21,7 +21,8 @@ def calculate_habitability_score(df):
     
     columns_to_keep = ['pl_name', 'pl_rade', 'pl_bmasse', 'pl_orbsmax', 'pl_orbeccen',
                       'st_lum', 'st_mass', 'sy_snum', 'sy_pnum', 'pl_dens', 'st_teff', 
-                      'st_rad', 'pl_temp', 'habitability_score', 'atm_retention_prob']
+                      'st_rad', 'pl_temp', 'habitability_score', 'atm_retention_prob',
+                      'radiation_viability']
     
     result_cols = [col for col in columns_to_keep if col in result_df.columns]
     result_df = result_df[result_cols]
