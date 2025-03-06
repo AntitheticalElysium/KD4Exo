@@ -1,7 +1,6 @@
 Model train:
   -> NN (with regularization?)
   -> Random Forest
-  -> Ensemble model? 
 
 Distillation:
   -> Small NN
