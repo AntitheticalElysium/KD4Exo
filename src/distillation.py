@@ -30,7 +30,7 @@ def load_teacher_model():
     teacher_model = xgb.XGBRegressor()
     teacher_model.load_model(f"{MODEL_PATH}/xgboost_model.json")
     return teacher_model
-    
+
 if __name__ == "__main__":
     # Load and prepare data
     X, y = load_data()
