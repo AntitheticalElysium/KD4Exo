@@ -1,0 +1,16 @@
+Model train:
+  -> NN (with regularization?)
+  -> Random Forest
+  -> Ensemble model? 
+
+Distillation:
+  -> Small NN
+  -> Decision Tree
+  -> Linear model?
+
+Techniques:
+  -> Soft targets
+  -> Feature based?
+  -> Relation Distillation? 
+
+-> Sparse Autoencoders?
