@@ -1,46 +1,26 @@
-import numpy as np
-import pandas as pd
-import time
-import joblib
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, r2_score
-import xgboost as xgb
-
-# Paths
-DATA_PATH = "../data/processed/exoplanet_data_clean.csv"
-MODEL_PATH = "../models"
-
-def load_data():
-    """
-    Load preprocessed exoplanet data.
-    """
-    df = pd.read_csv(DATA_PATH)
-    
-    # Features and target
-    X = df.drop(columns=['habitability_score', 'pl_name'])
-    y = df['habitability_score']
-    
-    return X, y
-
-def prepare_data(X, y, test_size=0.2, random_state=42):
-    """
-    Split data into training and testing sets.
-    """
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
-    return X_train, X_test, y_train, y_test
-
-def load_teacher_model():
-    """
-    Load the pre-trained XGBoost teacher model.
-    """
-    teacher_model = xgb.XGBRegressor()
-    teacher_model.load_model(f"{MODEL_PATH}/xgboost_model.json")
-    return teacher_model
-
-if __name__ == "__main__":
-    # Load and prepare data
-    X, y = load_data()
-    X_train, X_test, y_train, y_test = prepare_data(X, y)
-    
-    # Load teacher model
-    teacher_model = load_teacher_model()
+#1. **Sequential distillation**: Start with a large, complex model (teacher) trained on your original or sparse-autoencoded features, then distill to progressively smaller models.
+# This can reveal how much knowledge is retained at each compression level.
+#
+#2. **Feature-focused distillation**: Rather than just matching the final output predictions, force the student model to match intermediate representations of key features. 
+# This could help preserve physical meaning in your habitable exoplanet predictions.
+#
+#3. **Ensemble teacher approach**: Train multiple teacher models with different architectures (e.g., deep neural networks, gradient boosting, random forests) that each 
+# excel at different aspects of the prediction task, then distill their collective knowledge into a single student model.
+#
+#4. **Temperature-scaled distillation**: Experiment with different temperature parameters in the softmax to control how much of the teacher's uncertainty is transferred to 
+# the student. This is especially relevant for borderline habitable/non-habitable cases.
+#
+#5. **Attention distillation**: If using attention-based models for your teacher, have the student also learn the attention patterns. This could help it focus on the 
+# same critical planetary features that drive habitability.
+#
+#6. **Physics-informed distillation**: Add regularization terms that ensure your distilled model respects physical constraints related to planetary habitability, rather 
+# than just matching the teacher's predictions blindly.
+#
+#7. **Data augmentation during distillation**: Generate synthetic exoplanet data based on your physical models to expand the training set, helping the student model 
+# generalize better.
+#
+#8. **Dual-objective training**: Have your student model simultaneously learn from the teacher and directly from the raw data, potentially allowing it to correct some 
+# teacher model errors.
+#
+#For your specific exoplanet context, I'd be particularly interested in comparing how well different distillation approaches preserve the physical relationships 
+# between features that you've carefully modeled in your preprocessing steps.

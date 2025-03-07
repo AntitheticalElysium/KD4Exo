@@ -56,3 +56,23 @@ def plot_habitability_rankings(df, top_n=20):
     
     plt.show()
 
+def display_biggest_variations(y_test, y_pred, pl_names):
+    """
+    Displays the planets with the biggest variations between actual and predicted scores.
+    """
+    # Calculate the absolute differences between actual and predicted values
+    abs_diff = np.abs(y_test - y_pred)
+
+    # Print model predictions alongside pl_name, habitability_score, and absolute differences
+    results = pd.DataFrame({
+        'pl_name': pl_names,
+        'actual_habitability_score': y_test,
+        'predicted_habitability_score': y_pred,
+        'absolute_difference': abs_diff
+    })
+
+    pd.set_option('display.float_format', '{:.6f}'.format)
+    # Sort results by absolute difference in descending order to see the biggest variations
+    results_sorted = results.sort_values(by='absolute_difference', ascending=False)
+    print("Planets with the biggest variations between actual and predicted habitability scores:")
+    print(results_sorted.head(50))
