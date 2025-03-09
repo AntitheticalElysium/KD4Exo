@@ -60,9 +60,9 @@ def train_mlp(X_train, X_test, y_train, y_test):
 
     model = MLP(X_train.shape[1]).to(device)
     criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
 
-    for epoch in range(100):
+    for epoch in range(1000):
         optimizer.zero_grad()
         y_pred = model(X_train_torch)
         loss = criterion(y_pred, y_train_torch)
@@ -75,7 +75,8 @@ def train_mlp(X_train, X_test, y_train, y_test):
     mse = mean_squared_error(y_test, y_pred_test)
     r2 = r2_score(y_test, y_pred_test)
 
-    print(f"MLP - MSE: {mse:.4f}, R²: {r2:.4f}")
+    print(f"MLP - MSE: {mse:.4f}, R²: {r2:.4f}, Time: {time.time() - start_time:.2f}s")
+
 
     # Save model
     torch.save(model.state_dict(), f"{MODEL_PATH}/mlp_model.pth")
