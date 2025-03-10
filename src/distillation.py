@@ -21,9 +21,7 @@
 #
 #8. **Dual-objective training**: Have your student model simultaneously learn from the teacher and directly from the raw data, potentially allowing it to correct some 
 # teacher model errors.
-#
-#For your specific exoplanet context, I'd be particularly interested in comparing how well different distillation approaches preserve the physical relationships 
-# between features that you've carefully modeled in your preprocessing steps.
+
 import numpy as np
 import pandas as pd
 import time
