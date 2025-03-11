@@ -17,6 +17,7 @@ def calculate_habitability_score(df):
     planet_names = result_df['pl_name'].copy() if 'pl_name' in result_df.columns else None
     
     result_df = calculate_scores(result_df)
+
     result_df.to_csv("../data/raw/exoplanet_data_tmp.csv", index=False)
     result_df = adjust_special_cases(result_df)
     
@@ -196,7 +197,7 @@ def adjust_special_cases(df):
     extreme_cases = (
         (result_df['pl_bmasse'] > 50) |         # Definite gas giants
         (result_df['pl_rade'] > 2) |            # Likely no solid surface
-        (result_df['pl_temp'] > 500) |          # Too hot for life
+        (result_df['pl_temp'] > 400) |          # Too hot for life
         (result_df['pl_temp'] < 100) |          # Too cold for life
         (result_df['atm_retention_prob'] < 0.5) # Unlikely to have an atmosphere
     )
