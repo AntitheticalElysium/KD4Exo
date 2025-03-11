@@ -132,14 +132,16 @@ if __name__ == "__main__":
     pd.set_option("display.max_columns", None)
     df = preprocess_exoplanet_data()
     
-    # display the planets with a habitable of 1, sorted by habitability scores
-    print("\nHabitable planets:")
-    print(df[df['habitable'] == 1].sort_values(by='habitability_score', ascending=False))
+    # display the planets with a habitable of 1, sorted by habitability scores and excluding the synthetic planets
+    habitable_planets = df[(df['habitable'] == 1) & ~df['pl_name'].str.startswith("Synthetic")]
+    habitable_planets = habitable_planets.sort_values(by='habitability_score', ascending=False)
+    print("Habitability rankings of non-synthetic planets:")
+    print(habitable_planets.head(20))
 
     print(f"Average habitability score: {df['habitability_score'].mean():.4f}")
     print(f"Maximum habitability score: {df['habitability_score'].max():.4f}")
     
-    df = process_data(df)
+    # df = process_data(df)
     
     df.to_csv(CLEAN_DATA_PATH, index=False)
 

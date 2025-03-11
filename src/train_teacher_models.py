@@ -50,11 +50,12 @@ class MLP(nn.Module):
             
         # Output layer
         layers.append(nn.Linear(hidden_sizes[-1], 1))
+        layers.append(nn.Sigmoid())
         
         self.model = nn.Sequential(*layers)
     
     def forward(self, x):
-        return self.model(x).squeeze()
+        return self.model(x)
  
 def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=150):
     """
@@ -66,15 +67,15 @@ def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=
     # Convert to tensors
     X_train_tensor = torch.FloatTensor(X_train.values)
     X_test_tensor = torch.FloatTensor(X_test.values)
-    y_train_tensor = torch.FloatTensor(y_train.values)
-    y_test_tensor = torch.FloatTensor(y_test.values)
+    y_train_tensor = torch.FloatTensor(y_train.values).unsqueeze(1)
+    y_test_tensor = torch.FloatTensor(y_test.values).unsqueeze(1)
     
     # Create model
     input_size = X_train.shape[1]
     model = MLP(input_size, hidden_sizes=[256, 512, 512, 256, 128])
     
-    # Use mean squared error loss and AdamW optimizer with cosine annealing
-    criterion = nn.MSELoss()
+    # Use binary cross entropy loss and AdamW optimizer with cosine annealing
+    criterion = nn.BCELoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.005, weight_decay=1e-5)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
     
@@ -128,7 +129,8 @@ def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=
     # Final evaluation
     model.eval()
     with torch.no_grad():
-        y_pred = model(X_test_tensor).numpy()
+        y_pred = model(X_test_tensor).detach().cpu().numpy().flatten()
+        y_pred = (y_pred >= 0.5).astype(int) # Convert to binary
         mse = mean_squared_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
     
@@ -196,7 +198,7 @@ def train_meta_learner(X_train, X_test, y_train, y_test):
 if __name__ == "__main__":
     X_train, X_test, y_train, y_test, pl_names  = load_and_split_data()
 
-    # y_pred_mlp = train_mlp(X_train, X_test, y_train, y_test, pl_names)
+    y_pred_mlp = train_mlp(X_train, X_test, y_train, y_test, pl_names)
     y_pred_xgb = train_xgboost(X_train, X_test, y_train, y_test, pl_names)
     y_pred_rf = train_random_forest(X_train, X_test, y_train, y_test, pl_names)
 

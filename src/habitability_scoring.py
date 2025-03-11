@@ -18,7 +18,9 @@ def calculate_habitability(df):
     
     result_df = calculate_scores(result_df)
     result_df = classify_planets(result_df)
-    
+
+    # Await input for planet names and display the row
+
     # calculate habitability score for habitable planets only
     result_df.loc[result_df['habitable'] == 1, 'habitability_score'] = \
     calculate_habitability_score(result_df[result_df['habitable'] == 1])['habitability_score']
@@ -162,7 +164,7 @@ def classify_planets(df):
     # Define the criteria for habitable planets
     habitable_criteria = (
         # Within habitable zone (with a small buffer)
-        (result_df['hz_position'] >= -0.1) & (result_df['hz_position'] <= 1.1) &
+        (result_df['hz_position'] >= -0.15) & (result_df['hz_position'] <= 1.15) &
         
         # Temperature within life range
         (result_df['pl_temp'] >= 180) & (result_df['pl_temp'] <= 400) &
