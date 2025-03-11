@@ -17,7 +17,7 @@ def calculate_habitability_score(df):
     planet_names = result_df['pl_name'].copy() if 'pl_name' in result_df.columns else None
     
     result_df = calculate_scores(result_df)
-    df.to_csv("../data/raw/exoplanet_data_tmp.csv", index=False)
+    result_df.to_csv("../data/raw/exoplanet_data_tmp.csv", index=False)
     result_df = adjust_special_cases(result_df)
     
     columns_to_keep = ['pl_name', 'pl_rade', 'pl_bmasse', 'pl_orbsmax', 'pl_orbeccen',
