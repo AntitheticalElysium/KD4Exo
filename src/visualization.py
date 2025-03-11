@@ -35,8 +35,8 @@ def display_habitability_rankings(y_test, y_pred, pl_names):
     """
     Display the habitability rankings of non-synthetic planets.
     """
-    # Exclude synthetic planets
-    non_synthetic = ~pl_names.str.startswith("Terra")
+    # Exclude synthetic planets (Terra-* and Thanatos-*)
+    non_synthetic = ~pl_names.str.startswith("Terra") & ~pl_names.str.startswith("Thanatos")
     y_test = y_test[non_synthetic]
     y_pred = y_pred[non_synthetic]
     pl_names = pl_names[non_synthetic]

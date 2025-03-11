@@ -158,8 +158,8 @@ def train_xgboost(X_train, X_test, y_train, y_test, pl_names):
     r2 = r2_score(y_test, y_pred)
 
     print(f"XGBoost - MSE: {mse:.10f}, R²: {r2:.10f}, Time: {time.time() - start_time:.10f}s")
-    # display_biggest_variations(y_test, y_pred, pl_names)
-    # display_habitability_rankings(y_test, y_pred, pl_names)
+    display_biggest_variations(y_test, y_pred, pl_names)
+    display_habitability_rankings(y_test, y_pred, pl_names)
 
     # Save model
     model.save_model(f"{MODEL_PATH}/xgboost_model.json")
@@ -181,8 +181,8 @@ def train_random_forest(X_train, X_test, y_train, y_test, pl_names):
     r2 = r2_score(y_test, y_pred)
 
     print(f"Random Forest - MSE: {mse:.10f}, R²: {r2:.10f}, Time: {time.time() - start_time:.10f}s")
-    # display_biggest_variations(y_test, y_pred, pl_names)
-    # display_habitability_rankings(y_test, y_pred, pl_names)
+    display_biggest_variations(y_test, y_pred, pl_names)
+    display_habitability_rankings(y_test, y_pred, pl_names)
 
     # Save model
     joblib.dump(model, f"{MODEL_PATH}/random_forest_model.pkl")
@@ -197,7 +197,7 @@ def train_meta_learner(X_train, X_test, y_train, y_test):
 if __name__ == "__main__":
     X_train, X_test, y_train, y_test, pl_names  = load_and_split_data()
 
-    y_pred_mlp = train_mlp(X_train, X_test, y_train, y_test, pl_names)
+    # y_pred_mlp = train_mlp(X_train, X_test, y_train, y_test, pl_names)
     y_pred_xgb = train_xgboost(X_train, X_test, y_train, y_test, pl_names)
     y_pred_rf = train_random_forest(X_train, X_test, y_train, y_test, pl_names)
 
