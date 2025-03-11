@@ -31,30 +31,26 @@ def plot_feature_distributions(df, exclude_cols=None):
     
     plt.show()
 
-def plot_habitability_rankings(df, top_n=20):
+def display_habitability_rankings(y_test, y_pred, pl_names):
     """
-    Plots the top N most habitable planets.
+    Display the habitability rankings of non-synthetic planets.
     """
-    # Sort by habitability index
-    df_sorted = df.sort_values(by='habitability_score', ascending=False)
-    top_planets = df_sorted.head(top_n)
-    
-    # Create bar plot
-    plt.figure(figsize=(12, 8))
-    bars = plt.barh(top_planets['pl_name'], top_planets['habitability_score'])
-    plt.xlabel('Habitability Score')
-    plt.ylabel('Planet Name')
-    plt.title(f'Top {top_n} Most Earth-like Exoplanets')
-    plt.xlim(0, 1)
-    plt.gca().invert_yaxis()  # Display highest value at the top
-    plt.tight_layout()
-    
-    for bar in bars:
-        width = bar.get_width()
-        plt.text(width + 0.01, bar.get_y() + bar.get_height()/2, 
-                 f'{width:.3f}', va='center')
-    
-    plt.show()
+    # Exclude synthetic planets
+    non_synthetic = ~pl_names.str.startswith("Synthetic")
+    y_test = y_test[non_synthetic]
+    y_pred = y_pred[non_synthetic]
+    pl_names = pl_names[non_synthetic]
+
+    # Display habitability rankings 
+    results = pd.DataFrame({
+        'pl_name': pl_names,
+        'actual_habitability_score': y_test,
+        'predicted_habitability_score': y_pred
+    })
+
+    results_sorted = results.sort_values(by='actual_habitability_score', ascending=False)
+    print("Habitability rankings of non-synthetic planets:")
+    print(results_sorted.head(20))
 
 def display_biggest_variations(y_test, y_pred, pl_names):
     """

@@ -5,7 +5,8 @@ from sklearn.preprocessing import StandardScaler
 from scipy.stats import boxcox
 from physical_calculations import process_missing_data
 from habitability_scoring import calculate_habitability
-from visualization import plot_feature_distributions, plot_habitability_rankings
+from visualization import plot_feature_distributions
+from generate_planets import generate_habitable_planets
 
 RAW_DATA_PATH = "../data/raw/exoplanet_data.csv"
 CLEAN_DATA_PATH = "../data/processed/exoplanet_data_clean.csv"
@@ -24,6 +25,18 @@ def preprocess_exoplanet_data():
     
     df = process_missing_data(df)
     df = calculate_habitability(df)
+
+    # Check class distribution
+    habitable_count = df['habitable'].sum()
+    total_count = len(df)
+    print(f"Original dataset: {habitable_count}/{total_count} habitable planets ({habitable_count/total_count:.1%})")
+    
+    # Generate synthetic habitable planets if needed
+    if habitable_count < 100:
+        synthetic_planets = generate_habitable_planets(df, num_to_generate=200)
+        synthetic_planets['habitable'] = 1  # All synthetics are habitable by design
+        df = pd.concat([df, synthetic_planets], ignore_index=True)
+        print(f"After augmentation: {df['habitable'].sum()}/{len(df)} habitable planets ({df['habitable'].sum()/len(df):.1%})")
     
     return df
 
@@ -72,7 +85,7 @@ def handle_skewness(df, threshold=0.75, exclude_cols=None):
     Correct skewness in features using Box-Cox transformation.
     """
     if exclude_cols is None:
-        exclude_cols = ['pl_name', 'habitable', 'habitability_score', 'sy_snum', 'sy_pnum']
+        exclude_cols = ['pl_name', 'habitable', 'habitability_score', 'sy_snum', 'sy_pnum', 'hz_position']
     
     numeric_df = df.select_dtypes(include=['float64', 'int64'])
     skewness = numeric_df.skew()
