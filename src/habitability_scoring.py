@@ -7,7 +7,7 @@ from physical_calculations import (
     calculate_magnetic_field_protection
 )
 
-def calculate_habitability_score(df):
+def calculate_habitability(df):
     """
     Calculate habitability score for exoplanets.
     """
@@ -17,14 +17,16 @@ def calculate_habitability_score(df):
     planet_names = result_df['pl_name'].copy() if 'pl_name' in result_df.columns else None
     
     result_df = calculate_scores(result_df)
-
-    result_df.to_csv("../data/raw/exoplanet_data_tmp.csv", index=False)
-    result_df = adjust_special_cases(result_df)
+    result_df = classify_planets(result_df)
+    
+    # calculate habitability score for habitable planets only
+    result_df.loc[result_df['habitable'] == 1, 'habitability_score'] = \
+    calculate_habitability_score(result_df[result_df['habitable'] == 1])['habitability_score']
     
     columns_to_keep = ['pl_name', 'pl_rade', 'pl_bmasse', 'pl_orbsmax', 'pl_orbeccen',
                       'st_lum', 'st_mass', 'sy_snum', 'sy_pnum', 'pl_dens', 'st_teff', 
                       'st_rad', 'pl_temp', 'habitability_score', 'atm_retention_prob',
-                      'radiation_viability']
+                      'radiation_viability', 'hz_score', 'habitable']
     
     result_cols = [col for col in columns_to_keep if col in result_df.columns]
     result_df = result_df[result_cols]
@@ -149,7 +151,43 @@ def calculate_scores(df):
         1.0
     )
     
-    # Combine into final habitability score
+    return result_df
+
+def classify_planets(df):
+    """
+    Classify planets as potentially habitable (1) or not habitable (0).
+    """
+    result_df = df.copy()
+    
+    # Define the criteria for habitable planets
+    habitable_criteria = (
+        # Within habitable zone (with a small buffer)
+        (result_df['hz_position'] >= -0.1) & (result_df['hz_position'] <= 1.1) &
+        
+        # Temperature within life range
+        (result_df['pl_temp'] >= 180) & (result_df['pl_temp'] <= 400) &
+        
+        # Not a gas giant
+        (result_df['pl_bmasse'] <= 10) & (result_df['pl_rade'] <= 2) &
+        
+        # Likely to retain atmosphere
+        (result_df['atm_retention_prob'] >= 0.4) &
+        
+        # Not highly irradiated
+        (result_df['radiation_viability'] > 0.5)
+    )
+    
+    # Apply classification
+    result_df['habitable'] = habitable_criteria.astype(int)
+    
+    return result_df
+
+def calculate_habitability_score(df):
+    """
+    Calculate habitability score for habitable planets.
+    """
+    result_df = df.copy()
+
     viability_score = (
         result_df['hz_score'] ** 0.3 *           # HZ position
         result_df['temp_viability'] ** 0.3 *     # Temperature suitability
@@ -170,43 +208,4 @@ def calculate_scores(df):
     )
     
     result_df['habitability_score'] = (viability_score * other_factors) ** 0.1 # Scale out the values
-    
-    return result_df
-
-def adjust_special_cases(df):
-    """
-    Adjust habitability scores for special cases.
-    """
-    result_df = df.copy()
-    
-    earth_like = (
-        (result_df['pl_rade'].between(0.9, 1.1)) & 
-        (result_df['pl_bmasse'].between(0.9, 1.1)) & 
-        (result_df['pl_orbsmax'].between(0.95, 1.05)) & 
-        (result_df['pl_orbeccen'] < 0.02) &
-        (result_df['st_mass'].between(0.95, 1.05)) &
-        (result_df['sy_snum'] == 1) &
-        (result_df['atm_retention_prob'] > 0.8)
-    )
-    # Earth-like planets should have a high habitability score
-    result_df.loc[earth_like, 'habitability_score'] = np.maximum(
-        result_df.loc[earth_like, 'habitability_score'], 
-        0.95
-    )
-
-    extreme_cases = (
-        (result_df['pl_bmasse'] > 50) |         # Definite gas giants
-        (result_df['pl_rade'] > 2) |            # Likely no solid surface
-        (result_df['pl_temp'] > 400) |          # Too hot for life
-        (result_df['pl_temp'] < 100) |          # Too cold for life
-        (result_df['atm_retention_prob'] < 0.5) # Unlikely to have an atmosphere
-    )
-    # Extreme cases should have a low habitability score
-    result_df.loc[extreme_cases, 'habitability_score'] = np.minimum(
-        result_df.loc[extreme_cases, 'habitability_score'],
-        0.05
-    )
-    
-    result_df['habitability_score'] = np.clip(result_df['habitability_score'], 0, 1)
-    
     return result_df
