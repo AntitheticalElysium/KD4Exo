@@ -149,7 +149,7 @@ if __name__ == "__main__":
     print(f"Average habitability score: {df['habitability_score'].mean():.4f}")
     print(f"Maximum habitability score: {df['habitability_score'].max():.4f}")
     
-    # df = process_data(df)
+    df = process_data(df)
     
     df.to_csv(CLEAN_DATA_PATH, index=False)
 
