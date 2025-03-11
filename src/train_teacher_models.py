@@ -50,7 +50,6 @@ class MLP(nn.Module):
             
         # Output layer
         layers.append(nn.Linear(hidden_sizes[-1], 1))
-        layers.append(nn.Sigmoid())
         
         self.model = nn.Sequential(*layers)
     
@@ -75,7 +74,7 @@ def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=
     model = MLP(input_size, hidden_sizes=[256, 512, 512, 256, 128])
     
     # Use binary cross entropy loss and AdamW optimizer with cosine annealing
-    criterion = nn.BCELoss()
+    criterion = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.005, weight_decay=1e-5)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
     
@@ -129,7 +128,7 @@ def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=
     # Final evaluation
     model.eval()
     with torch.no_grad():
-        y_pred = model(X_test_tensor).detach().cpu().numpy().flatten()
+        y_pred = torch.sigmoid(model(X_test_tensor)).detach().cpu().numpy().flatten()
         y_pred = (y_pred >= 0.5).astype(int) # Convert to binary
         mse = mean_squared_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
