@@ -15,7 +15,17 @@ CONSTANTS = {
     'HE_MASS': 6.6464764e-27,      # Mass of helium atom (kg)
     'O_MASS': 2.6566962e-26,       # Mass of oxygen atom (kg)
     'N_MASS': 2.3258671e-26,       # Mass of nitrogen atom (kg)
-    'ALBEDO': 0.3                  # Default Earth-like albedo
+    'ALBEDO': 0.3,                 # Default Earth-like albedo
+    'SOLAR_TEMP': 5778             # Solar temperature in K
+}
+
+# Habital zone constants
+HZ_CONSTANTS = {
+    'SOLAR_TEMP': 5778,                                         # Solar temperature in K
+    'INNER_BASE': 1.107,                                        # Inner edge (runaway greenhouse) base value
+    'INNER_COEF': [1.332e-4, 1.58e-8, -8.308e-12, -1.931e-15],  # Inner edge coefficients
+    'OUTER_BASE': 0.356,                                        # Outer edge (maximum greenhouse) base value
+    'OUTER_COEF': [6.171e-5, 1.698e-9, -3.198e-12, -5.575e-16], # Outer edge coefficients
 }
 
 # Gas retention parameters

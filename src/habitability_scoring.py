@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
+import difflib
 from physical_calculations import (
-    CONSTANTS, JEANS_THRESHOLDS,
+    CONSTANTS, HZ_CONSTANTS, JEANS_THRESHOLDS,
     calculate_escape_velocity, ensure_temperature_data, 
     calculate_jeans_parameters, assess_stellar_activity,
     calculate_magnetic_field_protection
@@ -19,8 +20,29 @@ def calculate_habitability(df):
     result_df = calculate_scores(result_df)
     result_df = classify_planets(result_df)
 
-    # Await input for planet names and display the row
+    while True:
+        try:
+            planet_name = input("Enter the name of the planet you want to search (or type 'exit' to quit): ")
+            if planet_name.lower() == 'exit':
+                break
 
+            exact_match = result_df[result_df['pl_name'] == planet_name]
+            if not exact_match.empty:
+                print("Exact match found:")
+                print(exact_match)
+                continue
+
+            matches = difflib.get_close_matches(planet_name, result_df['pl_name'], n=5, cutoff=0.5)
+        
+            if matches:
+                print("Closest matches:")
+                print(result_df[result_df['pl_name'].isin(matches)])
+            else:
+                print("No close matches found.")
+        except ValueError:
+            print("An error occurred. Please try again.")
+
+    
     # calculate habitability score for habitable planets only
     result_df.loc[result_df['habitable'] == 1, 'habitability_score'] = \
     calculate_habitability_score(result_df[result_df['habitable'] == 1])['habitability_score']
@@ -79,21 +101,47 @@ def estimate_atmosphere_probability(df):
     
     return result_df
 
-def calculate_scores(df):
+def calculate_hz_position(df):
     """
-    Calculate habitability scores based on physical properties. 
+    Calculate the position of a planet within the habitable zone.
     """
     result_df = df.copy()
+
+    # Calculate temperature difference from solar temperature
+    t_star_diff = result_df['st_teff'] - CONSTANTS['SOLAR_TEMP']
     
-    # Habitable zone calculation
-    result_df['hz_inner'] = 0.97 * np.sqrt(result_df['st_lum'])
-    result_df['hz_outer'] = 1.67 * np.sqrt(result_df['st_lum'])
-    result_df['hz_position'] = (result_df['pl_orbsmax'] - result_df['hz_inner']) / (result_df['hz_outer'] - result_df['hz_inner'])
+    # Initialize effective flux thresholds with base values
+    s_eff_inner = HZ_CONSTANTS['INNER_BASE'] + sum(
+        coef * t_star_diff**(i+1) for i, coef in enumerate(HZ_CONSTANTS['INNER_COEF'])
+    )
+    s_eff_outer = HZ_CONSTANTS['OUTER_BASE'] + sum(
+        coef * t_star_diff**(i+1) for i, coef in enumerate(HZ_CONSTANTS['OUTER_COEF'])
+    )
+    
+    # Ensure positive values for square root
+    hz_inner = np.sqrt(np.maximum(0, result_df['st_lum'] / np.maximum(s_eff_inner, 1e-10)))
+    hz_outer = np.sqrt(np.maximum(0, result_df['st_lum'] / np.maximum(s_eff_outer, 1e-10)))
+    
+    # Calculate habitable zone score - peaks at center of HZ (0.5)
+    result_df['hz_position'] = (result_df['pl_orbsmax'] - hz_inner) / (hz_outer - hz_inner)
     result_df['hz_score'] = np.exp(-4 * ((result_df['hz_position'] - 0.5) ** 2))
     
     # Penalize planets outside the habitable zone
     outside_hz = (result_df['hz_position'] < 0) | (result_df['hz_position'] > 1)
     result_df.loc[outside_hz, 'hz_score'] = result_df.loc[outside_hz, 'hz_score'] * 0.1
+    
+    result_df['hz_inner'] = hz_inner
+    result_df['hz_outer'] = hz_outer
+    return result_df
+
+def calculate_scores(df):
+    """
+    Calculate habitability scores based on physical properties. 
+    """
+    result_df = df.copy()
+
+    # Calculate habitable zone score
+    result_df = calculate_hz_position(result_df)
     
     # Planetary properties scores
     # Radius score - peaks at Earth radius (1.0), declines as radius diverges
@@ -175,8 +223,8 @@ def classify_planets(df):
         # Likely to retain atmosphere
         (result_df['atm_retention_prob'] >= 0.4) &
         
-        # Not highly irradiated
-        (result_df['radiation_viability'] > 0.5)
+        # Not highly irradiated (atmosphere mitigates radiation)
+        ((result_df['radiation_viability'] >= 0.5) | (result_df['atm_retention_prob'] >= 0.5))
     )
     
     # Apply classification
