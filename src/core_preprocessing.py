@@ -6,7 +6,7 @@ from scipy.stats import boxcox
 from physical_calculations import process_missing_data
 from habitability_scoring import calculate_habitability
 from visualization import plot_feature_distributions
-from generate_planets import generate_habitable_planets
+from generate_planets import generate_habitable_planets, generate_non_habitable_planets
 
 RAW_DATA_PATH = "../data/raw/exoplanet_data.csv"
 CLEAN_DATA_PATH = "../data/processed/exoplanet_data_clean.csv"
@@ -32,9 +32,17 @@ def preprocess_exoplanet_data():
     print(f"Original dataset: {habitable_count}/{total_count} habitable planets ({habitable_count/total_count:.1%})")
     
     # Generate synthetic habitable planets if needed
-    if habitable_count < 100:
-        synthetic_planets = generate_habitable_planets(df, num_to_generate=200)
+    if habitable_count < 2000:
+        synthetic_planets = generate_habitable_planets(df, num_to_generate=2000)
         synthetic_planets['habitable'] = 1  # All synthetics are habitable by design
+        df = pd.concat([df, synthetic_planets], ignore_index=True)
+        print(f"After augmentation: {df['habitable'].sum()}/{len(df)} habitable planets ({df['habitable'].sum()/len(df):.1%})")
+
+    # Generate synthetic non-habitable planets if needed
+    non_habitable_count = total_count - habitable_count
+    if non_habitable_count < 80000:
+        synthetic_planets = generate_non_habitable_planets(df, num_to_generate=80000)
+        synthetic_planets['habitable'] = 0  # All synthetics are non-habitable by design
         df = pd.concat([df, synthetic_planets], ignore_index=True)
         print(f"After augmentation: {df['habitable'].sum()}/{len(df)} habitable planets ({df['habitable'].sum()/len(df):.1%})")
     
@@ -133,7 +141,7 @@ if __name__ == "__main__":
     df = preprocess_exoplanet_data()
     
     # display the planets with a habitable of 1, sorted by habitability scores and excluding the synthetic planets
-    habitable_planets = df[(df['habitable'] == 1) & ~df['pl_name'].str.startswith("Synthetic")]
+    habitable_planets = df[(df['habitable'] == 1) & ~df['pl_name'].str.startswith("Terra")]
     habitable_planets = habitable_planets.sort_values(by='habitability_score', ascending=False)
     print("Habitability rankings of non-synthetic planets:")
     print(habitable_planets.head(20))
