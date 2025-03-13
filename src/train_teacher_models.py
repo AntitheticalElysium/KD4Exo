@@ -33,7 +33,7 @@ class MLP(nn.Module):
     def __init__(self, input_size, hidden_sizes=[256, 512, 256, 128], dropout_rate=0.3):
         super(MLP, self).__init__()
         
-        # Input layer
+    # Input layer
         layers = [nn.Linear(input_size, hidden_sizes[0]),
                   nn.BatchNorm1d(hidden_sizes[0]),
                   nn.ReLU(),
@@ -56,7 +56,7 @@ class MLP(nn.Module):
  
 def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=150):
     """
-    Trains an MLP model with advanced features on GPU if available.
+    Trains an MLP model. 
     """
     print("Training MLP...")
     start_time = time.time()
@@ -191,8 +191,8 @@ def train_meta_learner(X_train, X_test, y_train, y_test):
 if __name__ == "__main__":
     X_train, X_test, y_train, y_test, pl_names  = load_and_split_data()
 
-    # y_pred_mlp = train_mlp(X_train, X_test, y_train, y_test, pl_names)
-    y_pred_xgb = train_xgboost(X_train, X_test, y_train, y_test, pl_names)
-    y_pred_rf = train_random_forest(X_train, X_test, y_train, y_test, pl_names)
+    y_pred_mlp = train_mlp(X_train, X_test, y_train, y_test, pl_names)
+    # y_pred_xgb = train_xgboost(X_train, X_test, y_train, y_test, pl_names)
+    # y_pred_rf = train_random_forest(X_train, X_test, y_train, y_test, pl_names)
 
     # Train meta-learner

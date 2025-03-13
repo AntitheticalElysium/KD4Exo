@@ -12,7 +12,6 @@ from visualization import display_biggest_variations, display_habitability_ranki
 
 DATA_PATH = "../data/processed/exoplanet_data_clean.csv"
 MODEL_PATH = "../models"
-TEMPERATURE = 2.0  # Softmax temperature for distillation
 
 # Student model
 class ShallowNN(nn.Module):
@@ -33,7 +32,92 @@ class ShallowNN(nn.Module):
     def forward(self, x):
         return self.model(x)
 
-def distill_knowledge(X_train, X_test, y_train, y_test, pl_names, alpha=0.5, epochs=1000, patience=50):
+def train_baseline_student_model(X_train, X_test, y_train, y_test, pl_names, epochs=1000, patience=50):
+    """
+    Trains a baseline student NN model.
+    """
+    print("Training ShallowNN...")
+    start_time = time.time()
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
+    # Convert to tensors and move to GPU if available
+    X_train_tensor = torch.FloatTensor(X_train.values).to(device)
+    X_test_tensor = torch.FloatTensor(X_test.values).to(device)
+    y_train_tensor = torch.FloatTensor(y_train.values).unsqueeze(1).to(device)
+    y_test_tensor = torch.FloatTensor(y_test.values).unsqueeze(1).to(device)
+
+    # Create model and move it to GPU
+    input_size = X_train.shape[1]
+    model = ShallowNN(input_size).to(device)
+
+    # Loss, optimizer, and scheduler
+    criterion = nn.BCEWithLogitsLoss()
+    optimizer = torch.optim.AdamW(model.parameters(), lr=0.005, weight_decay=1e-5)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
+
+    # Early stopping variables
+    best_val_loss = float('inf')
+    early_stop_counter = 0
+    best_model_state = None
+
+    # Training loop
+    for epoch in range(epochs):
+        model.train()
+        optimizer.zero_grad()
+
+        # Forward pass
+        outputs = model(X_train_tensor)
+        loss = criterion(outputs, y_train_tensor)
+
+        # Backward pass and optimize
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # Prevent gradient explosion
+        optimizer.step()
+        scheduler.step()
+
+        # Validation
+        model.eval()
+        with torch.no_grad():
+            val_outputs = model(X_test_tensor)
+            val_loss = criterion(val_outputs, y_test_tensor)
+
+            if (epoch + 1) % 100 == 0:
+                print(f'Epoch [{epoch+1}/{epochs}], Train Loss: {loss.item():.6f}, Val Loss: {val_loss.item():.6f}')
+
+            # Check early stopping
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                early_stop_counter = 0
+                best_model_state = model.state_dict().copy()
+            else:
+                early_stop_counter += 1
+
+            if early_stop_counter >= patience:
+                print(f'Early stopping at epoch {epoch+1}')
+                break
+
+    if best_model_state is not None:
+        model.load_state_dict(best_model_state)
+
+    # Final evaluation
+    model.eval()
+    with torch.no_grad():
+        y_pred = torch.sigmoid(model(X_test_tensor)).detach().cpu().numpy().flatten()
+        y_pred = (y_pred >= 0.5).astype(int)  # Convert to binary
+        mse = mean_squared_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+
+    print(f"ShallowNN - MSE: {mse:.10f}, R²: {r2:.10f}, Time: {time.time() - start_time:.2f}s")
+    display_biggest_variations(y_test, y_pred, pl_names)
+    display_habitability_rankings(y_test, y_pred, pl_names)
+
+    torch.save(model.state_dict(), f"{MODEL_PATH}/baseline_shallow_nn_model.pt")
+    return model, y_pred
+   
+
+def distill_knowledge(X_train, X_test, y_train, y_test, pl_names, alpha=0.25, epochs=1000, patience=50):
     """
     Distill knowledge from trained teacher model to student model.
     """
@@ -145,11 +229,14 @@ def distill_knowledge(X_train, X_test, y_train, y_test, pl_names, alpha=0.5, epo
     display_biggest_variations(y_test, student_preds, pl_names)
     display_habitability_rankings(y_test, student_preds, pl_names)
     
-    torch.save(student_model.state_dict(), f"{MODEL_PATH}/shallow_nn_distilled.pt")
+    torch.save(student_model.state_dict(), f"{MODEL_PATH}/distilled_shallow_nn_model.pt")
     return student_model
 
 if __name__ == "__main__":
     X_train, X_test, y_train, y_test, pl_names = load_and_split_data()
+
+    # Train baseline student model 
+    student_model = train_baseline_student_model(X_train, X_test, y_train, y_test, pl_names)
     
     # Perform knowledge distillation
     student_model = distill_knowledge(X_train, X_test, y_train, y_test, pl_names, alpha=0.7)
