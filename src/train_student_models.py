@@ -7,8 +7,10 @@ from sklearn.metrics import mean_squared_error, r2_score
 import xgboost as xgb
 from sklearn.ensemble import RandomForestRegressor
 import torch
-from torch import nn 
+from torch import nn
 from visualization import display_biggest_variations
+
+MODEL_PATH = "../models"
 
 class ShallowNN(nn.Module):
     def __init__(self, input_dim):
@@ -28,5 +30,11 @@ class ShallowNN(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+if __name__ == "__main__":
+    X_train, X_test, y_train, y_test, pl_names  = load_and_split_data()
 
+    # y_pred_mlp = train_mlp(X_train, X_test, y_train, y_test, pl_names)
+    y_pred_xgb = train_xgboost(X_train, X_test, y_train, y_test, pl_names)
+    y_pred_rf = train_random_forest(X_train, X_test, y_train, y_test, pl_names)
 
+    # Train meta-learner

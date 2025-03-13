@@ -79,7 +79,7 @@ def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=
 
     # Loss, optimizer, and scheduler
     criterion = nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.005, weight_decay=1e-5)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=0.01, weight_decay=1e-5)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
 
     # Early stopping variables
@@ -199,8 +199,8 @@ def train_meta_learner(X_train, X_test, y_train, y_test):
 if __name__ == "__main__":
     X_train, X_test, y_train, y_test, pl_names  = load_and_split_data()
 
-    y_pred_mlp = train_mlp(X_train, X_test, y_train, y_test, pl_names)
-    # y_pred_xgb = train_xgboost(X_train, X_test, y_train, y_test, pl_names)
-    # y_pred_rf = train_random_forest(X_train, X_test, y_train, y_test, pl_names)
+    # y_pred_mlp = train_mlp(X_train, X_test, y_train, y_test, pl_names)
+    y_pred_xgb = train_xgboost(X_train, X_test, y_train, y_test, pl_names)
+    y_pred_rf = train_random_forest(X_train, X_test, y_train, y_test, pl_names)
 
     # Train meta-learner
