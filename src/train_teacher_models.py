@@ -20,12 +20,11 @@ def load_and_split_data(test_size=0.2, random_state=42):
     df = pd.read_csv(DATA_PATH)
 
     # Features and target
-    X = df.drop(columns=['habitable', 'habitability_score', 'pl_name'])  # Drop non-numeric and target
+    X = df.drop(columns=['habitable', 'habitability_score', 'pl_name'])
     y = df['habitable']
 
     # Split dataset
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
-    # Keep track of pl_name for predictions
     pl_names = df.loc[X_test.index, 'pl_name']
 
     return X_train, X_test, y_train, y_test, pl_names
@@ -42,7 +41,6 @@ class MLP(nn.Module):
         
         # Hidden layers with residual connections where possible
         for i in range(len(hidden_sizes) - 1):
-            # Main path
             layers.append(nn.Linear(hidden_sizes[i], hidden_sizes[i + 1]))
             layers.append(nn.BatchNorm1d(hidden_sizes[i + 1]))
             layers.append(nn.ReLU())
@@ -63,7 +61,6 @@ def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=
     print("Training MLP...")
     start_time = time.time()
 
-    # Check for GPU availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
@@ -123,7 +120,6 @@ def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=
                 print(f'Early stopping at epoch {epoch+1}')
                 break
 
-    # Load best model state
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
 
@@ -139,9 +135,7 @@ def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=
     display_biggest_variations(y_test, y_pred, pl_names)
     display_habitability_rankings(y_test, y_pred, pl_names)
 
-    # Save model
     torch.save(model.state_dict(), f"{MODEL_PATH}/mlp_model.pt")
-
     return model, y_pred
 
 def train_xgboost(X_train, X_test, y_train, y_test, pl_names):
@@ -163,7 +157,6 @@ def train_xgboost(X_train, X_test, y_train, y_test, pl_names):
     display_biggest_variations(y_test, y_pred, pl_names)
     display_habitability_rankings(y_test, y_pred, pl_names)
 
-    # Save model
     model.save_model(f"{MODEL_PATH}/xgboost_model.json")
     return model
 
@@ -186,7 +179,6 @@ def train_random_forest(X_train, X_test, y_train, y_test, pl_names):
     display_biggest_variations(y_test, y_pred, pl_names)
     display_habitability_rankings(y_test, y_pred, pl_names)
 
-    # Save model
     joblib.dump(model, f"{MODEL_PATH}/random_forest_model.pkl")
     return model
 
