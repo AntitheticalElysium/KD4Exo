@@ -165,7 +165,7 @@ def distill_knowledge(X_train, X_test, y_train, y_test, pl_names, alpha=0.25, ep
         
         # Hard loss - comparing with actual labels
         hard_loss = criterion_hard(student_logits, y_train_tensor)
-        # Soft loss - comparing with teacher's logits (MSE on logits)
+        # Soft loss - comparing with teacher's logits
         soft_loss = F.mse_loss(student_logits, teacher_logits)
         # Weighted loss - combines hard and soft losses
         loss = (1 - alpha) * hard_loss + alpha * soft_loss
