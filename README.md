@@ -105,7 +105,7 @@ Models are evaluated based on:
 ## Results
 
 Student models achieve comparable performance to teacher models while being significantly smaller and faster:
-- Logit distillation: ~95% agreement with teacher
+- Logit distillation: ~99.97% agreement with teacher
 - Feature distillation: Best balance of size and accuracy
 - Relational distillation: Improved generalization on edge cases
 
