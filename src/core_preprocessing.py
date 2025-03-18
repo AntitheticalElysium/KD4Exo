@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import joblib
+import yaml
 from sklearn.preprocessing import StandardScaler
 from scipy.stats import boxcox
 from physical_calculations import process_missing_data
@@ -8,13 +9,21 @@ from habitability_scoring import calculate_habitability
 from visualization import plot_feature_distributions
 from generate_planets import generate_habitable_planets, generate_non_habitable_planets
 
-RAW_DATA_PATH = "../data/raw/exoplanet_data.csv"
-CLEAN_DATA_PATH = "../data/processed/exoplanet_data_clean.csv"
+def load_config():
+    """
+    Load configuration from config.yaml
+    """
+    with open("../config.yaml", "r") as f:
+        config = yaml.safe_load(f)
+    return config
 
-def preprocess_exoplanet_data():
+def preprocess_exoplanet_data(config):
     """
     Load and process exoplanet data, calculating habitability scores.
     """
+    RAW_DATA_PATH = config['data']['raw_path']
+    CLEAN_DATA_PATH = config['data']['processed_path']
+    
     df = pd.read_csv(RAW_DATA_PATH)
     
     retained_columns = [
@@ -32,33 +41,36 @@ def preprocess_exoplanet_data():
     print(f"Original dataset: {habitable_count}/{total_count} habitable planets ({habitable_count/total_count:.1%})")
     
     # Generate synthetic habitable planets if needed
-    if habitable_count < 2000:
-        synthetic_planets = generate_habitable_planets(df, num_to_generate=2000)
+    habitable_threshold = config['augmentation']['habitable_threshold']
+    if habitable_count < habitable_threshold:
+        synthetic_planets = generate_habitable_planets(df, num_to_generate=habitable_threshold)
         synthetic_planets['habitable'] = 1  # All synthetics are habitable by design
         df = pd.concat([df, synthetic_planets], ignore_index=True)
         print(f"After augmentation: {df['habitable'].sum()}/{len(df)} habitable planets ({df['habitable'].sum()/len(df):.1%})")
 
     # Generate synthetic non-habitable planets if needed
+    non_habitable_threshold = config['augmentation']['non_habitable_threshold']
     non_habitable_count = total_count - habitable_count
-    if non_habitable_count < 80000:
-        synthetic_planets = generate_non_habitable_planets(df, num_to_generate=80000)
+    if non_habitable_count < non_habitable_threshold:
+        synthetic_planets = generate_non_habitable_planets(df, num_to_generate=non_habitable_threshold)
         synthetic_planets['habitable'] = 0  # All synthetics are non-habitable by design
         df = pd.concat([df, synthetic_planets], ignore_index=True)
         print(f"After augmentation: {df['habitable'].sum()}/{len(df)} habitable planets ({df['habitable'].sum()/len(df):.1%})")
     
     return df
 
-def process_data(df, skip_outliers=False, skip_skewness=False, skip_scaling=False):
+def process_data(df, config):
     """
     Process data, optionally skipping outlier handling, skewness correction, or scaling
+    based on configuration
     """
-    if not skip_outliers:
+    if config['preprocessing']['handle_outliers']:
         df = handle_outliers(df)
     
-    if not skip_skewness:
-        df = handle_skewness(df)
+    if config['preprocessing']['handle_skewness']:
+        df = handle_skewness(df, threshold=config['preprocessing']['skewness_threshold'])
     
-    if not skip_scaling:
+    if config['preprocessing']['scaling']:
         df = scale_features(df)
     
     return df
@@ -138,7 +150,9 @@ def scale_features(df, exclude_cols=None):
 
 if __name__ == "__main__":
     pd.set_option("display.max_columns", None)
-    df = preprocess_exoplanet_data()
+    config = load_config()
+    
+    df = preprocess_exoplanet_data(config)
     
     # display the planets with a habitable of 1, sorted by habitability scores and excluding the synthetic planets
     habitable_planets = df[(df['habitable'] == 1) & ~df['pl_name'].str.startswith("Terra")]
@@ -149,9 +163,9 @@ if __name__ == "__main__":
     print(f"Average habitability score: {df['habitability_score'].mean():.4f}")
     print(f"Maximum habitability score: {df['habitability_score'].max():.4f}")
     
-    df = process_data(df)
+    df = process_data(df, config)
     
-    df.to_csv(CLEAN_DATA_PATH, index=False)
+    df.to_csv(config['data']['processed_path'], index=False)
 
     # plot_feature_distributions(df)
     # plot_habitability_rankings(df)

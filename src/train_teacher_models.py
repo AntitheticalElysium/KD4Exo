@@ -2,38 +2,41 @@ import numpy as np
 import pandas as pd
 import time
 import joblib
+import yaml
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
-import xgboost as xgb
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+# import xgboost as xgb
+from sklearn.ensemble import RandomForestClassifier
 import torch
 from torch import nn 
 from visualization import display_biggest_variations, display_habitability_rankings
+from core_preprocessing import load_config
 
-DATA_PATH = "../data/processed/exoplanet_data_clean.csv"
-MODEL_PATH = "../models"
-
-def load_and_split_data(test_size=0.2, random_state=42):
+def load_and_split_data(config):
     """
     Loads and splits dataset into training and testing sets.
     """
-    df = pd.read_csv(DATA_PATH)
+    df = pd.read_csv(config['data']['processed_path'])
 
     # Features and target
     X = df.drop(columns=['habitable', 'habitability_score', 'pl_name'])
     y = df['habitable']
 
     # Split dataset
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, 
+        test_size=config['training']['test_size'], 
+        random_state=config['training']['random_state']
+    )
     pl_names = df.loc[X_test.index, 'pl_name']
 
     return X_train, X_test, y_train, y_test, pl_names
 
 class MLP(nn.Module):
-    def __init__(self, input_size, hidden_sizes=[256, 512, 256, 128], dropout_rate=0.3):
+    def __init__(self, input_size, hidden_sizes, dropout_rate=0.3):
         super(MLP, self).__init__()
         
-    # Input layer
+        # Input layer
         layers = [nn.Linear(input_size, hidden_sizes[0]),
                   nn.BatchNorm1d(hidden_sizes[0]),
                   nn.ReLU(),
@@ -54,9 +57,9 @@ class MLP(nn.Module):
     def forward(self, x):
         return self.model(x)
  
-def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=150):
+def train_mlp(X_train, X_test, y_train, y_test, pl_names, config):
     """
-    Trains an MLP model. 
+    Trains an MLP model.
     """
     print("Training MLP...")
     start_time = time.time()
@@ -64,6 +67,9 @@ def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
+    # Extract MLP config
+    mlp_config = config['training']['teacher']['mlp']
+    
     # Convert to tensors and move to GPU if available
     X_train_tensor = torch.FloatTensor(X_train.values).to(device)
     X_test_tensor = torch.FloatTensor(X_test.values).to(device)
@@ -72,12 +78,24 @@ def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=
 
     # Create model and move it to GPU
     input_size = X_train.shape[1]
-    model = MLP(input_size, hidden_sizes=[256, 512, 512, 256, 128]).to(device)
+    model = MLP(
+        input_size, 
+        hidden_sizes=mlp_config['hidden_sizes'],
+        dropout_rate=mlp_config['dropout_rate']
+    ).to(device)
 
     # Loss, optimizer, and scheduler
     criterion = nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.01, weight_decay=1e-5)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
+    optimizer = torch.optim.AdamW(
+        model.parameters(), 
+        lr=mlp_config['learning_rate'],
+        weight_decay=mlp_config['weight_decay']
+    )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, 
+        T_max=mlp_config['epochs'], 
+        eta_min=1e-6
+    )
 
     # Early stopping variables
     best_val_loss = float('inf')
@@ -85,7 +103,7 @@ def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=
     best_model_state = None
 
     # Training loop
-    for epoch in range(epochs):
+    for epoch in range(mlp_config['epochs']):
         model.train()
         optimizer.zero_grad()
 
@@ -106,7 +124,7 @@ def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=
             val_loss = criterion(val_outputs, y_test_tensor)
 
             if (epoch + 1) % 100 == 0:
-                print(f'Epoch [{epoch+1}/{epochs}], Train Loss: {loss.item():.6f}, Val Loss: {val_loss.item():.6f}')
+                print(f'Epoch [{epoch+1}/{mlp_config["epochs"]}], Train Loss: {loss.item():.6f}, Val Loss: {val_loss.item():.6f}')
 
             # Check early stopping
             if val_loss < best_val_loss:
@@ -116,7 +134,7 @@ def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=
             else:
                 early_stop_counter += 1
 
-            if early_stop_counter >= patience:
+            if early_stop_counter >= mlp_config['patience']:
                 print(f'Early stopping at epoch {epoch+1}')
                 break
 
@@ -135,17 +153,25 @@ def train_mlp(X_train, X_test, y_train, y_test, pl_names, epochs=3000, patience=
     display_biggest_variations(y_test, y_pred, pl_names)
     display_habitability_rankings(y_test, y_pred, pl_names)
 
-    torch.save(model.state_dict(), f"{MODEL_PATH}/mlp_model.pt")
+    torch.save(model.state_dict(), f"{config['data']['models_path']}/mlp_model.pt")
     return model, y_pred
 
-def train_xgboost(X_train, X_test, y_train, y_test, pl_names):
+def train_xgboost(X_train, X_test, y_train, y_test, pl_names, config):
     """
     Trains an XGBoost model.
     """
     print("Training XGBoost...")
     start_time = time.time()
 
-    model = xgb.XGBClassifier(objective='reg:squarederror', n_estimators=200, max_depth=0, learning_rate=0.05)
+    # Extract XGBoost config
+    xgb_config = config['training']['teacher']['xgboost']
+    
+    model = xgb.XGBClassifier(
+        objective=xgb_config['objective'],
+        n_estimators=xgb_config['n_estimators'],
+        max_depth=xgb_config['max_depth'],
+        learning_rate=xgb_config['learning_rate']
+    )
     model.fit(X_train, y_train)
 
     # Evaluate model
@@ -157,17 +183,23 @@ def train_xgboost(X_train, X_test, y_train, y_test, pl_names):
     display_biggest_variations(y_test, y_pred, pl_names)
     display_habitability_rankings(y_test, y_pred, pl_names)
 
-    model.save_model(f"{MODEL_PATH}/xgboost_model.json")
-    return model
+    model.save_model(f"{config['data']['models_path']}/xgboost_model.json")
+    return model, y_pred
 
-def train_random_forest(X_train, X_test, y_train, y_test, pl_names):
+def train_random_forest(X_train, X_test, y_train, y_test, pl_names, config):
     """
     Trains a Random Forest model.
     """
     print("Training Random Forest...")
     start_time = time.time()
 
-    model = RandomForestClassifier(n_estimators=200, max_depth=5000)
+    # Extract Random Forest config
+    rf_config = config['training']['teacher']['random_forest']
+    
+    model = RandomForestClassifier(
+        n_estimators=rf_config['n_estimators'],
+        max_depth=rf_config['max_depth']
+    )
     model.fit(X_train, y_train)
 
     # Evaluate model
@@ -179,8 +211,8 @@ def train_random_forest(X_train, X_test, y_train, y_test, pl_names):
     display_biggest_variations(y_test, y_pred, pl_names)
     display_habitability_rankings(y_test, y_pred, pl_names)
 
-    joblib.dump(model, f"{MODEL_PATH}/random_forest_model.pkl")
-    return model
+    joblib.dump(model, f"{config['data']['models_path']}/random_forest_model.pkl")
+    return model, y_pred
 
 def train_meta_learner(X_train, X_test, y_train, y_test):
     """
@@ -189,10 +221,11 @@ def train_meta_learner(X_train, X_test, y_train, y_test):
     pass
 
 if __name__ == "__main__":
-    X_train, X_test, y_train, y_test, pl_names  = load_and_split_data()
+    config = load_config()
+    X_train, X_test, y_train, y_test, pl_names = load_and_split_data(config)
 
-    y_pred_mlp = train_mlp(X_train, X_test, y_train, y_test, pl_names)
-    # y_pred_xgb = train_xgboost(X_train, X_test, y_train, y_test, pl_names)
-    # y_pred_rf = train_random_forest(X_train, X_test, y_train, y_test, pl_names)
+    model_mlp, y_pred_mlp = train_mlp(X_train, X_test, y_train, y_test, pl_names, config)
+    # model_xgb, y_pred_xgb = train_xgboost(X_train, X_test, y_train, y_test, pl_names, config)
+    # model_rf, y_pred_rf = train_random_forest(X_train, X_test, y_train, y_test, pl_names, config)
 
     # Train meta-learner
