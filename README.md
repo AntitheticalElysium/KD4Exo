@@ -38,13 +38,9 @@ pip install -r requirements.txt
 
 The project uses a `config.yaml` file to centralize all configuration parameters:
 
-- Physical constants used in calculations
-- Habitable zone thresholds
-- Gas retention parameters
 - Data preprocessing options
 - Model hyperparameters
 - Training settings
-- Habitability classification criteria
 
 To customize the pipeline, edit the parameters in `config.yaml` rather than modifying the source code. This simplifies experimentation and parameter tuning.
 
