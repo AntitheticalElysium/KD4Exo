@@ -5,11 +5,9 @@ from torch import nn
 import torch.nn.functional as F
 import joblib
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, r2_score
 import time
 import yaml
 from train_teacher_models import load_and_split_data, MLP
-from visualization import display_biggest_variations, display_habitability_rankings
 from core_preprocessing import load_config
 
 # Student model
@@ -31,6 +29,43 @@ class ShallowNN(nn.Module):
     
     def forward(self, x):
         return self.model(x)
+
+
+# Student model with feature extraction hooks
+class StudentModelWithFeatures(nn.Module):
+    def __init__(self, input_dim, hidden_sizes=None):
+        super(StudentModelWithFeatures, self).__init__()
+
+        self.layer1 = nn.Linear(input_dim, hidden_sizes[0])
+        self.relu1 = nn.ReLU()
+        self.bn1 = nn.BatchNorm1d(hidden_sizes[0])
+            
+        self.layer2 = nn.Linear(hidden_sizes[0], hidden_sizes[1])
+        self.relu2 = nn.ReLU()
+        self.bn2 = nn.BatchNorm1d(hidden_sizes[1])
+            
+        self.layer3 = nn.Linear(hidden_sizes[1], 1)
+            
+        self.features = {}
+        
+    def forward(self, x):
+        # First layer
+        x = self.layer1(x)
+        x = self.relu1(x)
+        x = self.bn1(x)
+        self.features['layer1'] = x.clone()
+            
+        # Second layer
+        x = self.layer2(x)
+        x = self.relu2(x)
+        x = self.bn2(x)
+        self.features['layer2'] = x.clone()
+            
+        # Output layer
+        x = self.layer3(x)
+            
+        return x
+    
 
 def train_baseline_student_model(X_train, X_test, y_train, y_test, pl_names):
     """
@@ -441,41 +476,6 @@ def feature_distillation(X_train, X_test, y_train, y_test, pl_names):
     teacher_model = MLP(input_size, hidden_sizes=teacher_hidden_sizes).to(device)
     teacher_model.load_state_dict(torch.load(f"{config['data']['models_path']}/mlp_model.pt", map_location=device))
     teacher_model.eval()
-    
-    # Student model with feature extraction hooks
-    class StudentModelWithFeatures(nn.Module):
-        def __init__(self, input_dim, hidden_sizes=None):
-            super(StudentModelWithFeatures, self).__init__()
-            
-            self.layer1 = nn.Linear(input_dim, hidden_sizes[0])
-            self.relu1 = nn.ReLU()
-            self.bn1 = nn.BatchNorm1d(hidden_sizes[0])
-            
-            self.layer2 = nn.Linear(hidden_sizes[0], hidden_sizes[1])
-            self.relu2 = nn.ReLU()
-            self.bn2 = nn.BatchNorm1d(hidden_sizes[1])
-            
-            self.layer3 = nn.Linear(hidden_sizes[1], 1)
-            
-            self.features = {}
-        
-        def forward(self, x):
-            # First layer
-            x = self.layer1(x)
-            x = self.relu1(x)
-            x = self.bn1(x)
-            self.features['layer1'] = x.clone()
-            
-            # Second layer
-            x = self.layer2(x)
-            x = self.relu2(x)
-            x = self.bn2(x)
-            self.features['layer2'] = x.clone()
-            
-            # Output layer
-            x = self.layer3(x)
-            
-            return x
     
     student_model = StudentModelWithFeatures(input_size, hidden_sizes).to(device)
     
