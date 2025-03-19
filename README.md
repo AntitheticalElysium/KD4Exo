@@ -4,13 +4,13 @@ A machine learning pipeline for predicting exoplanet habitability using knowledg
 
 ## Project Overview
 
-KD4Exo builds a sophisticated pipeline for analyzing exoplanet data to:
+KD4Exo builds a pipeline for analyzing exoplanet data to:
 
 1. Predict the habitability of exoplanets based on physical properties
 2. Apply knowledge distillation to create efficient, lightweight models
 3. Compare various distillation approaches for optimal performance
 
-The project combines physics-based feature engineering with state-of-the-art ML techniques to build accurate and efficient models.
+The project combines physics-based feature engineering with advanced ML techniques to build accurate and efficient models.
 
 ## Features
 
