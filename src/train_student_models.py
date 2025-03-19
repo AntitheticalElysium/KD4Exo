@@ -5,6 +5,8 @@ from torch import nn
 import torch.nn.functional as F
 import joblib
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+from visualization import display_biggest_variations, display_habitability_rankings
 import time
 import yaml
 from train_teacher_models import load_and_split_data, MLP
@@ -193,7 +195,8 @@ def logit_distillation(X_train, X_test, y_train, y_test, pl_names):
     input_size = X_train.shape[1]
     teacher_config = config["training"]["teacher"]["mlp"]
     teacher_hidden_sizes = teacher_config["hidden_sizes"]
-    teacher_model = MLP(input_size, hidden_sizes=teacher_hidden_sizes).to(device)
+    teacher_dropout_rate = teacher_config["dropout_rate"]
+    teacher_model = MLP(input_size, hidden_sizes=teacher_hidden_sizes, dropout_rate=teacher_dropout_rate).to(device)
     teacher_model.load_state_dict(torch.load(f"{config['data']['models_path']}/mlp_model.pt", map_location=device))
     teacher_model.eval()  # Set to evaluation mode
     
@@ -326,7 +329,8 @@ def relational_distillation(X_train, X_test, y_train, y_test, pl_names):
     input_size = X_train.shape[1]
     teacher_config = config["training"]["teacher"]["mlp"]
     teacher_hidden_sizes = teacher_config["hidden_sizes"]
-    teacher_model = MLP(input_size, hidden_sizes=teacher_hidden_sizes).to(device)
+    teacher_dropout_rate = teacher_config["dropout_rate"]
+    teacher_model = MLP(input_size, hidden_sizes=teacher_hidden_sizes, dropout_rate=teacher_dropout_rate).to(device)
     teacher_model.load_state_dict(torch.load(f"{config['data']['models_path']}/mlp_model.pt", map_location=device))
     teacher_model.eval()  # Set to evaluation mode
     
@@ -476,7 +480,8 @@ def feature_distillation(X_train, X_test, y_train, y_test, pl_names):
     input_size = X_train.shape[1]
     teacher_config = config["training"]["teacher"]["mlp"]
     teacher_hidden_sizes = teacher_config["hidden_sizes"]
-    teacher_model = MLP(input_size, hidden_sizes=teacher_hidden_sizes).to(device)
+    teacher_dropout_rate = teacher_config["dropout_rate"]
+    teacher_model = MLP(input_size, hidden_sizes=teacher_hidden_sizes, dropout_rate=teacher_dropout_rate).to(device)
     teacher_model.load_state_dict(torch.load(f"{config['data']['models_path']}/mlp_model.pt", map_location=device))
     teacher_model.eval()
     
@@ -605,5 +610,5 @@ if __name__ == "__main__":
     
     # Perform knowledge distillation
     logit_distillation(X_train, X_test, y_train, y_test, pl_names)
-    relational_distillation(X_train, X_test, y_train, y_test, pl_names) # No memory AHH
+    # relational_distillation(X_train, X_test, y_train, y_test, pl_names) # No memory AHH
     feature_distillation(X_train, X_test, y_train, y_test, pl_names)
