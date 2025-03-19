@@ -147,7 +147,7 @@ def update_config_with_best_params(config, best_params):
     for key, value in best_params.items():
         config['training']['teacher']['mlp'][key] = value
     
-    with open('config.yaml', 'w') as f:
+    with open('../config.yaml', 'w') as f:
         yaml.dump(config, f, default_flow_style=False)
     
     print("Updated configuration saved to config.yaml")

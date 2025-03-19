@@ -1,78 +1,59 @@
-# KD4Exo Configuration
-
-# Data paths
+augmentation:
+  habitable_threshold: 2000
+  non_habitable_threshold: 80000
 data:
-  raw_path: "../data/raw/exoplanet_data.csv"
-  processed_path: "../data/processed/exoplanet_data_clean.csv"
-  models_path: "../models"
-  results_path: "../results"
-
-# Data preprocessing
+  models_path: ../models
+  processed_path: ../data/processed/exoplanet_data_clean.csv
+  raw_path: ../data/raw/exoplanet_data.csv
+  results_path: ../results
 preprocessing:
   handle_outliers: true
   handle_skewness: true
   scaling: true
   skewness_threshold: 0.75
-
-# Data augmentation
-augmentation:
-  habitable_threshold: 2000          # Target number of habitable planets
-  non_habitable_threshold: 80000     # Target number of non-habitable planets
-
-# Model training
 training:
-  test_size: 0.2
   random_state: 42
-  
-  # Teacher models
-  teacher:
-    # MLP
-    mlp:
-      hidden_sizes: [256, 512, 512, 256, 128]
-      dropout_rate: 0.3
-      learning_rate: 0.01
-      weight_decay: 0.0001
-      epochs: 3000
-      patience: 150
-      batch_size: 64
-      
-    # XGBoost
-    xgboost:
-      n_estimators: 200
-      max_depth: 0
-      learning_rate: 0.05
-      
-    # Random Forest
-    random_forest:
-      n_estimators: 200
-      max_depth: 5000
-
-  # Student models
   student:
-    # Baseline Shallow NN
-    shallow_nn:
-      hidden_sizes: [64, 32]
-      learning_rate: 0.005
-      weight_decay: 0.00001
-      epochs: 1000
-      patience: 50
-      batch_size: 64
-    
-    # Knowledge Distillation  
     distillation:
-      # Logit (standard) distillation
-      logit:
-        alpha: 0.25          # Hard vs soft loss balance
-        temperature: 4.0     # Temperature for softening logits
-        
-      # Relational distillation
-      relational:
-        alpha: 0.25          # Hard vs soft loss balance
-        beta: 0.5            # Relation vs logit loss balance
-        temperature: 4.0     # Temperature for softening logits
-        
-      # Feature distillation
       feature:
-        alpha: 0.2           # Hard vs soft loss balance
-        beta: 0.4            # Feature vs logit loss balance
-        feature_weights: [0.6, 0.4]  # Weights for different feature layers
+        alpha: 0.2
+        beta: 0.4
+        feature_weights:
+        - 0.6
+        - 0.4
+      logit:
+        alpha: 0.25
+        temperature: 4.0
+      relational:
+        alpha: 0.25
+        beta: 0.5
+        temperature: 4.0
+    shallow_nn:
+      batch_size: 64
+      epochs: 1000
+      hidden_sizes:
+      - 64
+      - 32
+      learning_rate: 0.005
+      patience: 50
+      weight_decay: 1.0e-05
+  teacher:
+    mlp:
+      batch_size: 64
+      dropout_rate: 0.4
+      epochs: 3000
+      hidden_sizes:
+      - 128
+      - 256
+      - 128
+      learning_rate: 0.005
+      patience: 100
+      weight_decay: 0.001
+    random_forest:
+      max_depth: 5000
+      n_estimators: 200
+    xgboost:
+      learning_rate: 0.05
+      max_depth: 0
+      n_estimators: 200
+  test_size: 0.2
