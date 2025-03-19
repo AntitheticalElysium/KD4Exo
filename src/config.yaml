@@ -1,0 +1,59 @@
+augmentation:
+  habitable_threshold: 2000
+  non_habitable_threshold: 80000
+data:
+  models_path: ../models
+  processed_path: ../data/processed/exoplanet_data_clean.csv
+  raw_path: ../data/raw/exoplanet_data.csv
+  results_path: ../results
+preprocessing:
+  handle_outliers: true
+  handle_skewness: true
+  scaling: true
+  skewness_threshold: 0.75
+training:
+  random_state: 42
+  student:
+    distillation:
+      feature:
+        alpha: 0.2
+        beta: 0.4
+        feature_weights:
+        - 0.6
+        - 0.4
+      logit:
+        alpha: 0.25
+        temperature: 4.0
+      relational:
+        alpha: 0.25
+        beta: 0.5
+        temperature: 4.0
+    shallow_nn:
+      batch_size: 64
+      epochs: 1000
+      hidden_sizes:
+      - 64
+      - 32
+      learning_rate: 0.005
+      patience: 50
+      weight_decay: 1.0e-05
+  teacher:
+    mlp:
+      batch_size: 64
+      dropout_rate: 0.4
+      epochs: 3000
+      hidden_sizes:
+      - 128
+      - 256
+      - 128
+      learning_rate: 0.005
+      patience: 100
+      weight_decay: 0.001
+    random_forest:
+      max_depth: 5000
+      n_estimators: 200
+    xgboost:
+      learning_rate: 0.05
+      max_depth: 0
+      n_estimators: 200
+  test_size: 0.2

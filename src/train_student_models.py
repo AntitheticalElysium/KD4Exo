@@ -167,6 +167,7 @@ def logit_distillation(X_train, X_test, y_train, y_test, pl_names):
     """
     print("Starting knowledge distillation...")
     start_time = time.time()
+    torch.cuda.empty_cache()
     
     # Get config parameters
     logit_config = config["training"]["student"]["distillation"]["logit"]
@@ -298,6 +299,7 @@ def relational_distillation(X_train, X_test, y_train, y_test, pl_names):
     """
     print("Starting relational knowledge distillation...")
     start_time = time.time()
+    torch.cuda.empty_cache()
     
     # Get config parameters
     rel_config = config["training"]["student"]["distillation"]["relational"]
@@ -447,6 +449,7 @@ def feature_distillation(X_train, X_test, y_train, y_test, pl_names):
     """
     print("Starting feature knowledge distillation...")
     start_time = time.time()
+    torch.cuda.empty_cache()
     
     # Get config parameters
     feat_config = config["training"]["student"]["distillation"]["feature"]
@@ -602,5 +605,5 @@ if __name__ == "__main__":
     
     # Perform knowledge distillation
     logit_distillation(X_train, X_test, y_train, y_test, pl_names)
-    # relational_distillation(X_train, X_test, y_train, y_test, pl_names) # No memory AHH
+    relational_distillation(X_train, X_test, y_train, y_test, pl_names) # No memory AHH
     feature_distillation(X_train, X_test, y_train, y_test, pl_names)
