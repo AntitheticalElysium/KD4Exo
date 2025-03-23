@@ -1,6 +1,6 @@
 augmentation:
-  habitable_threshold: 2000
-  non_habitable_threshold: 80000
+  habitable_threshold: 20000
+  non_habitable_threshold: 800000
 data:
   models_path: ../models
   processed_path: ../data/processed/exoplanet_data_clean.csv
