@@ -1,6 +1,6 @@
 augmentation:
-  habitable_threshold: 20000
-  non_habitable_threshold: 800000
+  habitable_threshold: 200000
+  non_habitable_threshold: 8000000
 data:
   models_path: ../models
   processed_path: ../data/processed/exoplanet_data_clean.csv
@@ -44,6 +44,7 @@ training:
       epochs: 3000
       hidden_sizes:
       - 128
+      - 256
       - 256
       - 128
       learning_rate: 0.005
